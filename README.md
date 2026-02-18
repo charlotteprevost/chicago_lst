@@ -35,4 +35,5 @@ This matches the repo layout and keeps hosting simple:
 3. **Frontend config**
    - `frontend/config.js` must point `titilerBaseUrl` to your Render service URL.
    - If the Render URL differs, update this value and push again.
+   - Default map layer is a GIBS thermal proxy for reliability; switch to "Illinois high-res ECOSTRESS LST (70m)" in the dataset selector once TiTiler COG is configured.
 

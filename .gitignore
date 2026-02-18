@@ -43,6 +43,9 @@ __pycache__/
 /analysis/outputs/
 /data/*.geojson
 /data/*.csv
+!/data/aoi_risk_latest.geojson
+!/data/chicago_data_centers_183.geojson
+!/data/dc_effect_cumulative.geojson
 
 # Logs
 *.log

@@ -15,6 +15,16 @@ export default {
     //
     // NOTE: TileMatrixSet can vary by layer; these defaults work for many epsg3857 layers.
     datasets: {
+      viirs_night_global: {
+        label: "Global nightly thermal proxy (VIIRS)",
+        cadence: "daily",
+        type: "gibs",
+        layer: "VIIRS_SNPP_DayNightBand_ENCC",
+        tileMatrixSet: "GoogleMapsCompatible_Level8",
+        maxZoom: 8,
+        // Chicago initial view; global layer coverage
+        defaultView: { center: [41.8781, -87.6298], zoom: 7 },
+      },
       ecostress_il_highres: {
         label: "Illinois high‑res • ECOSTRESS LST (70m)",
         cadence: "static",
@@ -26,7 +36,8 @@ export default {
       },
     },
 
-    defaultDatasetId: "ecostress_il_highres",
+    // Keep default on GIBS so the app loads even if TiTiler COG isn't configured yet.
+    defaultDatasetId: "viirs_night_global",
   },
 
   overlays: {
