@@ -1,0 +1,21 @@
+name: chicago_lst
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pip
+  # GIS stack from conda-forge (fast installs, avoids compiling)
+  - numpy<2
+  - pandas<3
+  - geopandas<1.2
+  - shapely<2.2
+  - pyproj<4
+  - rasterio<1.5
+  - statsmodels<0.15
+  - scikit-learn<2
+  # API + geocoding via pip
+  - pip:
+      - earthaccess>=0.16,<0.17
+      - geopy>=2.4,<3
+      - pystac-client>=0.8,<0.9
+      - planetary-computer>=1.0,<2

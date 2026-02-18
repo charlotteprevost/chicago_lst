@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Live Night Heat</title>
+
+    <!-- Use CDN so the app works when served from this folder -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar__left">
+        <div class="title">Live Night Heat</div>
+        <div class="subtitle">Illinois ECOSTRESS LST (70m) + data center overlays</div>
+      </div>
+
+      <div class="topbar__right">
+        <label class="control">
+          <span>Dataset</span>
+          <select id="dataset"></select>
+        </label>
+        <label class="control control--inline">
+          <span>Overlays</span>
+          <label class="check">
+            <input id="overlayRisk" type="checkbox" checked />
+            <span>AOI risk</span>
+          </label>
+          <label class="check">
+            <input id="overlayDC" type="checkbox" checked />
+            <span>Data centers</span>
+          </label>
+          <label class="check">
+            <input id="overlayEffect" type="checkbox" checked />
+            <span>DC Δ vs controls</span>
+          </label>
+        </label>
+        <span id="status" class="status"></span>
+      </div>
+    </header>
+
+    <main class="layout">
+      <div id="map" class="map"></div>
+    </main>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+      onerror="document.getElementById('status').textContent='Leaflet failed to load (check network/CSP).';"
+    ></script>
+    <script type="module" src="main.js"></script>
+  </body>
+</html>
+

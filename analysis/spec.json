@@ -1,0 +1,26 @@
+{
+  "spec_version": "v1",
+  "notes": "Pre-registered primary spec for DC heat effect analysis.",
+  "primary_buffer_m": 500,
+  "buffers_m": [250, 500, 1000],
+  "ecostress": {
+    "start_date_utc": "2018-07-09",
+    "qc": {
+      "keep_cloud_values": [0],
+      "keep_water_values": [0],
+      "qc_keep_classes": [0, 1],
+      "qc_class_bitmask": 3
+    }
+  },
+  "controls": {
+    "method": "metro_hull",
+    "metro_hull_buffer_km": 30,
+    "min_distance_m": 5000
+  },
+  "effect": {
+    "definition": "delta = dc_mean - control_mean, matched by timestamp and buffer_m",
+    "aggregate": ["mean", "median", "p90"],
+    "weight_by": "pixel_count"
+  }
+}
+

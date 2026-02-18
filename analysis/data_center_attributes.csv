@@ -1,0 +1,6 @@
+site_id,site_name,operator,capacity_mw,tier,opening_year,source_url,notes
+# Fill this file. Keys:
+# - site_id must match the site_id values in outputs (from aois_all.geojson / collapsed tables)
+# - tier can be I/II/III/IV or a numeric code; we treat it as categorical in modeling
+# Example:
+# dc_0001,Example DC,Example Operator,25.0,III,2018,,

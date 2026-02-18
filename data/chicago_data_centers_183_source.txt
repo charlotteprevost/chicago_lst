@@ -1,0 +1,536 @@
+Data Center Map
+Data CentersUSAIllinoisChicago
+Chicago Data Centers
+Below you will find locations of 183 data centers in Chicago, Illinois.
+To find other data center locations and colocation, cloud or connectivity providers in Illinois, please click here.
+
+Digital Realty
+Digital Realty brings companies and data together in bold new ways in Illinois
+350 East Cermak Road (ORD10)
+Digital Realty
+350 East Cermak Road
+60616 ChicagoDigital Realty
+600 S. Federal St. (ORD11)
+Digital Realty
+600 South Federal Street
+60605 ChicagoDigital Realty
+505 N. Railroad Avenue (ORD23)
+Digital Realty
+505 North Railroad Avenue
+60164 NorthlakeDigital Realty
+2200 Busse Road (CH1)
+Digital Realty
+2200 Busse Road
+60007 Elk Grove VillageDigital Realty
+9333 Grand Avenue (ORD12)
+Digital Realty
+9333 Grand Ave
+60131 Franklin ParkDigital Realty
+9355 Grand Ave (ORD13)
+Digital Realty
+9355 Grand Ave
+60131 Franklin ParkDigital Realty
+9377 Grand Ave (ORD14)
+Digital Realty
+9377 Grand Ave
+60131 Franklin ParkDigital Realty
+1400 East Devon Avenue (CH3)
+Digital Realty
+1400 East Devon Avenue
+60007 Elk Grove VillageDigital Realty
+2425-2553 Edgington Street (ORD22)
+Digital Realty
+2425-2553 Edgington St
+60131 Franklin ParkDigital Realty
+2299 Busse Road (CH2)
+Digital Realty
+2299 Busse Road
+60007 Elk Grove VillageDigital Realty
+9401 West Grand Avenue (ORD15)
+Digital Realty
+9401 W Grand Ave
+60131 Franklin ParkDigital Realty
+Hivelocity - Chicago 1
+Hivelocity
+350 East Cermak Road
+60616 ChicagoHivelocity
+CyrusOne CHI5 - Lombard
+CyrusOne Data Centers
+1850 Springers Drive
+60148 LombardCyrusOne Data Centers
+GDC - Chicago CH1 Data Center
+NTT DATA, Inc.
+255 Pierce Road
+60143 ItascaNTT DATA, Inc.
+CyrusOne CHI2 - Aurora
+CyrusOne Data Centers
+2805 Diehl Rd
+60502 AuroraCyrusOne Data Centers
+Summit Elk Grove Village
+Summit (formerly Deft)
+2200 Busse Rd
+60007 Elk Grove VillageSummit (formerly Deft)
+Centersquare - Chicago ORD4-A
+Csquare
+4513 Western Ave
+60532 LisleCsquare
+T5 Data Centers - T5@Chicago
+T5 Data Centers
+200 Innovation Dr
+60007 Elk Grove VillageT5 Data Centers
+Serverfarm Chicago Data Center CH1
+Serverfarm
+840 S. Canal Street
+60607 ChicagoServerfarm
+Netrality - 717 S Wells
+Netrality
+717 S. Wells
+60607 ChicagoNetrality
+Prime Chicago Data Center Campus
+Prime Data Centers
+1701 Midway Ct
+60007 Elk Grove VillagePrime Data Centers
+Prime Chicago - Building 3
+Prime Data Centers
+1701 Midway Court
+60007 Elk Grove VillagePrime Data Centers
+Prime Chicago - Building 1
+Prime Data Centers
+1500 E Higgins Rd, Elk Grove Village, IL 60007, USA
+60007 Elk Grove VillagePrime Data Centers
+Summit Chicago
+Summit (formerly Deft)
+350 East Cermak Road
+60616 ChicagoSummit (formerly Deft)
+Iron Mountain Data Centers CHI-1
+Iron Mountain Data Centers
+1680 Touhy Avenue
+60018 Des PlainesIron Mountain Data Centers
+Colocation America CHIDC1
+Colocation America
+350 E. Cermak Rd
+60616 ChicagoColocation America
+CyrusOne CHI1 - Aurora
+CyrusOne Data Centers
+2905 Diehl Rd.
+60148 LombardCyrusOne Data Centers
+Legacy - Chicago Byte Exchange
+Legacy Investing
+400 S LaSalle St
+60605 ChicagoLegacy Investing
+Prime Chicago - Building 2
+Prime Data Centers
+1600 Oakton St
+60007 Elk Grove VillagePrime Data Centers
+Apotech Data Center
+Apotech
+1331 E Business Center Dr
+60056 Mt ProspectApotech
+TierPoint Chicago - Polk
+TierPoint
+601 W. Polk St.
+60607 ChicagoTierPoint
+Element Critical Chicago One
+Element Critical
+711 N. Edgewood Ave.
+60191 Wood DaleElement Critical
+Skybox Chicago I
+Skybox Datacenters
+800 E Devon Ave
+60007 Elk Grove VillageSkybox Datacenters
+DataBank ORD4 - Chicago Tri-State
+DataBank
+1808 Swift Dr
+60523 Oak BrookDataBank
+DataBank ORD3 - Mount Prospect
+DataBank
+800 E Business Center Dr
+60056 Mt. ProspectDataBank
+Cogent Data Center - Chicago 1
+Cogent Communications, Inc.
+427 LaSalle St
+60606 ChicagoCogent Communications, Inc.
+Cogent Data Center - Chicago 2
+Cogent Communications, Inc.
+216 W. Jackson Blvd
+60606 ChicagoCogent Communications, Inc.
+Element Critical Chicago Two
+Element Critical
+341 Haynes Dr
+60191 Wood DaleElement Critical
+Colocation America CHIDC4
+Colocation America
+1808 Swift Dr.
+60523 Oak BrookColocation America
+Equinix CH4
+Equinix
+350 E Cermak Rd
+60616 ChicagoEquinix
+TierPoint Chicago - West
+TierPoint
+9333 West Grand Ave.
+60131 Franklin ParkTierPoint
+Equinix CH7
+Equinix
+111 Plaza Drive
+60559 WestmontEquinix
+US Signal Chicago IL01
+US Signal Company, LLC
+810 Jorie Blvd
+60523 Oak BrookUS Signal Company, LLC
+STACK Infrastructure CHI01B
+STACK INFRASTRUCTURE
+1301 Touhy Ave
+60007 Elk Grove VillageSTACK INFRASTRUCTURE
+DataBank ORD2 - Chicago
+DataBank
+840 S Canal St
+60607 ChicagoDataBank
+DataBank ORD1 - Downtown Chicago
+DataBank
+600 S Federal St
+60605 ChicagoDataBank
+EdgeConneX Chicago - EDCCHI02
+EdgeConneX
+2021 Lunt Ave
+60007 Elk Grove VillageEdgeConneX
+Stream DC Chicago I
+Stream Data Centers
+2080 Lunt Avenue
+60007 Elk Grove VillageStream Data Centers
+Centersquare - Chicago ORD1-A
+Csquare
+350 East Cermak
+60616 ChicagoCsquare
+HydraVault Data Center
+HydraVault
+2538 S Wabash Ave
+60616 ChicagoHydraVault
+SBA Edge Chicago
+SBA Edge
+603 Discovery Drive
+60185 West Chicago
+Centersquare - Chicago ORD1-D
+Csquare
+350 E Cermak Rd
+60616 ChicagoCsquare
+CoreSite Chicago (CH1)
+CoreSite
+427 South LaSalle
+60605 ChicagoCoreSite
+Centersquare - Chicago ORD1-C
+Csquare
+350 E Cermak Rd
+60616 ChicagoCsquare
+FirstComm Data Center
+First Communications
+601 W Polk St
+60607 Chicago
+ColoCrossing CH1
+ColoCrossing
+2200 Busse Road
+60007 Elk Grove VillageColoCrossing
+Metro Edge IMD1
+Metro Edge
+1951 W Hastings St
+60608 ChicagoMetro Edge
+Stream DC Chicago II
+Stream Data Centers
+1925 Busse Road
+60007 Elk Grove VillageStream Data Centers
+H5 Data Centers Chicago
+H5 Data Centers
+1951 W. Hastings St.
+60608 ChicagoH5 Data Centers
+CDW Elk Grove Data Center
+CDW Corporation
+1441 Touhy Ave
+60007 Elk Grove Village
+725 S. Wells
+1547 Critical Systems Realty
+725 S Wells
+60607 Chicago
+STACK Infrastructure CHI01A
+STACK INFRASTRUCTURE
+1441 Touhy Ave
+60007 Elk Grove VillageSTACK INFRASTRUCTURE
+Digital Fortress Chicago
+Digital Fortress
+360 E 22nd St.
+60148 LombardDigital Fortress
+GDC - Chicago CH3 Data Center
+NTT DATA, Inc.
+255 Pierce Rd
+60143 ItascaNTT DATA, Inc.
+GDC - Chicago CH2 Data Center
+NTT DATA, Inc.
+275 Pierce Rd
+60143 ItascaNTT DATA, Inc.
+Equinix CH1
+Equinix
+350 E Cermak Rd
+60616 ChicagoEquinix
+Equinix CH2
+Equinix
+350 E Cermak Rd
+60616 ChicagoEquinix
+Cogent Data Center - Chicago 3
+Cogent Communications, Inc.
+4200 W 40th St
+60632 ChicagoCogent Communications, Inc.
+QTS Chicago 1 DC1
+QTS Data Centers
+2800 S. Ashland Ave
+60608 ChicagoQTS Data Centers
+Aligned ORD-01
+Aligned Data Centers
+505 Northwest Avenue
+60164 NorthlakeAligned Data Centers
+365 Data Centers - Chicago 1
+365 Data Centers
+427 S La Salle St
+60605 Chicago365 Data Centers
+Microsoft Northlake
+Microsoft
+601-605 Northwest Ave
+60164 NorthlakeMicrosoft
+711 Ogden Avenue
+CloudCenters
+711 Ogden Ave
+60532 LisleCloudCenters
+Centersquare - Chicago ORD2-A
+Csquare
+2425 Busse Road
+60007 Elk Grove VillageCsquare
+Ascent CH2
+Ascent
+505 N Railroad Ave
+60164 Northlake
+CyrusOne CHI6 - Wood Dale
+CyrusOne Data Centers
+Bryn Mawr Ave & Pine Ave
+60106 Wood DaleCyrusOne Data Centers
+CoreSite Chicago (CH2)
+CoreSite
+1432 S Clinton St.
+60607 ChicagoCoreSite
+CoreWeave Hammond
+CoreWeave
+301 Digital Xrds Dr
+46320 HammondCoreWeave
+CloudHQ ORD Campus
+CloudHQ
+1200 E Algonquin Rd
+60016 Des PlainesCloudHQ
+Equinix CH3
+Equinix
+1905 Lunt Avenue
+60007 Elk Grove VillageEquinix
+STACK Infrastructure CHI02
+STACK INFRASTRUCTURE
+1830 Jarvis Ave
+60007 Elk Grove VillageSTACK INFRASTRUCTURE
+Rackspace Chicago
+Rackspace Hosting
+2200 Busse Road
+60007 Elk Grove VillageRackspace Hosting
+Chirisa Volo Technology Park YLO-02
+Chirisa
+300 South Fish Lake Rd
+60073 Volo
+Chirisa Volo Technology Park YLO-01
+Chirisa
+300 South Fish Lake Rd
+60073 Volo
+Chicago Board of Trade Building
+Apollo Global Management, Inc.
+141 West Jackson
+60604 Chicago
+1808 Swift Drive
+CenterPoint Properties
+1808 Swift Drive
+60523 Oak Brook
+360TCS Data Center
+360 Technology Center Solutions
+360 E. 22nd St.
+60148 Lombard360 Technology Center Solutions
+XNet Critical Computing Facility
+XNet Information Systems, Inc.
+3080 Ogden Ave
+60532 Lisle
+Centersquare - Chicago ORD1-B
+Csquare
+350 East Cermak
+60609 ChicagoCsquare
+Midway Technology Center
+1547 Critical Systems Realty
+40 E Garfield Blvd
+60615 Chicago
+NetSource Naperville 1
+NetSource Communications, Inc.
+2368 Corporate Lane
+60563 Naperville
+T5 Data Centers - T5@Chicago V
+T5 Data Centers
+within Elk Grove Village
+TBA Elk Grove VillageT5 Data Centers
+Chirisa Volo Technology Park
+Chirisa
+300 South Fish Lake Rd
+60073 Volo
+Stream DC Chicago III
+Stream Data Centers
+2000 Landmeier Rd
+60007 Elk Grove VillageStream Data Centers
+ColoHouse Chicago Cermak
+ColoHouse
+350 E Cermak
+60616 ChicagoColoHouse
+Naperville Data Center
+KARIS Critical
+1940 Lucent Ln
+60563 NapervilleKARIS Critical
+CloudHQ ORD2
+CloudHQ
+1200 E Algonquin Rd
+60016 Des PlainesCloudHQ
+T5 Data Centers - T5@Grayslake Campus
+T5 Data Centers
+30907 N Alleghany Rd
+60030 GrayslakeT5 Data Centers
+Microsoft Hoffman Estates - Building 2
+Microsoft
+Lakewood Blvd
+60192 Hoffman EstatesMicrosoft
+T5 Data Centers - T5@Chicago III
+T5 Data Centers
+11650 W Grand Ave
+60164 NorthlakeT5 Data Centers
+Aligned ORD-03
+Aligned Data Centers
+50 NW Point Blvd
+60007 Elk Grove VillageAligned Data Centers
+Aligned ORD-04
+Aligned Data Centers
+150 NW Point Blvd
+60007 Elk Grove VillageAligned Data Centers
+CloudHQ ORD3
+CloudHQ
+1200 E Algonquin Rd
+60016 Des PlainesCloudHQ
+Microsoft Hoffman Estates Campus
+Microsoft
+Lakewood Blvd
+60192 Hoffman EstatesMicrosoft
+Microsoft Elk Grove Campus
+Microsoft
+Elk Grove Technology Park, Innovation Dr & Oakton St
+60007 Elk Grove VillageMicrosoft
+Microsoft Hoffman Estates - Building 1
+Microsoft
+Lakewood Blvd
+60192 Hoffman EstatesMicrosoft
+CloudHQ ORD1
+CloudHQ
+1200 E Algonquin Rd
+60016 Des PlainesCloudHQ
+Aligned ORD-02
+Aligned Data Centers
+505 Northwest Avenue
+60164 NorthlakeAligned Data Centers
+HW Technology Park
+Hillwood Development Company
+Millsdale Rd / Schweitzer Rd
+60421 JolietHillwood Development Company
+ColoHouse Chicago Wells
+ColoHouse
+725 S Wells Street
+60607 ChicagoColoHouse
+Equinix CH5
+Equinix
+2001 Lunt Ave
+60007 Elk Grove VillageEquinix
+CDC - Chicago CH5 Data Center
+NTT DATA, Inc.
+1250 N Arlington Heights Rd
+60143 ItascaNTT DATA, Inc.
+EdgeConneX Chicago - EDCCHI01
+EdgeConneX
+1800 Nicholas Blvd
+60007 Elk Grove VillageEdgeConneX
+Chicago Exchange
+Menlo Digital
+601 W. Polk St
+60605 ChicagoMenlo Digital
+Colovore ORD01
+Colovore
+within Aurora, 41 miles from Chicago
+TBA AuroraColovore
+FDCservers.net
+FDCservers.net LLC
+141 West Jackson Blvd.
+60604 ChicagoFDCservers.net LLC
+LexisNexis Oak Brook
+LexisNexis
+1808 Swift Dr
+60523 Oak Brook
+Connect Chicago
+Connect Data Centers by Oppidan
+245 Kehoe Blvd
+60188 Carol StreamConnect Data Centers by Oppidan
+Edged Chicago ORD3
+Edged Energy
+2725 Bilter Rd
+60502 AuroraEdged Energy
+Edged Chicago ORD2
+Edged Energy
+2835 Bilter Rd
+60502 AuroraEdged Energy
+Edged Chicago ORD1
+Edged Energy
+2815 Bilter Rd
+60502 AuroraEdged Energy
+8080 S DuSable Lake Shore Drive
+Related Digital
+8080 S DuSable Lake Shore Dr
+60617 Chicago
+Meta DeKalb Campus
+Meta
+1550-2050 Metaverse Wy
+60115 DeKalbMeta
+Compass Hoffman Estates
+Compass Datacenters
+3333 Beverly Rd
+60179 Hoffman EstatesCompass Datacenters
+Microsoft Plano (IL)
+Microsoft
+Eldamain Rd & Corneils Rd
+60545 PlanoMicrosoft
+Morris Technology Park
+Tract
+US-6 & County Rd 2000 E
+60450 MorrisTract
+Lumen Chicago 3
+Lumen
+200 N LaSalle St
+60601 ChicagoLumen
+Lumen South Holland 1
+Lumen
+200 E 166th St
+60473 South HollandLumen
+GigeNET Chicago
+Gigenet
+545 E. Algonquin Rd.
+60005 Arlington Heights
+Volico Chicago
+Volico Data Center
+350 E Cermak Rd
+60616 Chicago
+NaviSite Chicago
+NaviSite, Inc.
+725 S Wells
+60610 Chicago
+Lumen Chicago 2
+Lumen
+900 N. Kingsbury Street
+60610 ChicagoLumen
