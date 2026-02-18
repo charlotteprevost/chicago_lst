@@ -36,8 +36,9 @@ export default {
       },
     },
 
-    // Keep default on GIBS so the app loads even if TiTiler COG isn't configured yet.
-    defaultDatasetId: "viirs_night_global",
+    // Prefer high-res TiTiler by default; app can auto-fallback if unavailable.
+    defaultDatasetId: "ecostress_il_highres",
+    fallbackDatasetId: "viirs_night_global",
   },
 
   overlays: {

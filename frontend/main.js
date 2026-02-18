@@ -156,6 +156,9 @@ async function makeTitilerLayer(ds) {
   const tms = meta?.tms ?? "WebMercatorQuad";
   const render = meta?.render ?? {};
   if (!cogUrl) throw new Error("Missing cog_url in data/ecostress_highres_latest.json");
+  if (String(cogUrl).includes("example.com")) {
+    throw new Error("COG URL is still a placeholder. Set a real public COG in data/ecostress_highres_latest.json.");
+  }
 
   const { template, maxzoom } = await buildTitilerTileUrlTemplate({
     titilerBaseUrl: config.titilerBaseUrl,
@@ -193,9 +196,17 @@ function setStatus(msg) {
 
 const datasets = config.gibs.datasets;
 let datasetId = config.gibs.defaultDatasetId;
+const fallbackDatasetId = config.gibs.fallbackDatasetId || "viirs_night_global";
 
 function getDataset() {
   return datasets[datasetId] || datasets[config.gibs.defaultDatasetId];
+}
+
+function setDatasetChoice(nextId) {
+  if (!datasets[nextId]) return false;
+  datasetId = nextId;
+  if (els.dataset) els.dataset.value = nextId;
+  return true;
 }
 
 function isoTimeForDataset(ds, dateObj) {
@@ -306,10 +317,27 @@ async function setBaseLayerForDataset(ds) {
   });
 }
 
+async function switchToFallback(reason) {
+  if (!fallbackDatasetId || fallbackDatasetId === datasetId || !datasets[fallbackDatasetId]) {
+    setStatus(reason);
+    return;
+  }
+  const fallback = datasets[fallbackDatasetId];
+  setDatasetChoice(fallbackDatasetId);
+  current = currentDefaultTimeForDataset(fallback);
+  syncControlsFromCurrent(fallback, current);
+  map.setView(fallback.defaultView.center, fallback.defaultView.zoom);
+  await setBaseLayerForDataset(fallback);
+  setStatus(`${reason} Falling back to ${fallback.label}.`);
+}
+
 // init base layer
 setBaseLayerForDataset(ds0).catch((e) => {
   console.warn("Base layer init failed", e);
-  setStatus(String(e?.message ?? e));
+  switchToFallback(`High-res layer unavailable (${e?.message ?? e}).`).catch((err) => {
+    console.warn("Fallback layer init failed", err);
+    setStatus(String(err?.message ?? err));
+  });
 });
 
 // --- AOI risk overlay (GeoJSON) ---
@@ -649,6 +677,13 @@ els.dataset?.addEventListener("change", () => {
   syncControlsFromCurrent(ds, current);
   setBaseLayerForDataset(ds).catch((e) => {
     console.warn("Base layer switch failed", e);
+    if (ds.type === "titiler_cog") {
+      switchToFallback(`High-res layer unavailable (${e?.message ?? e}).`).catch((err) => {
+        console.warn("Fallback layer switch failed", err);
+        setStatus(String(err?.message ?? err));
+      });
+      return;
+    }
     setStatus(String(e?.message ?? e));
   });
   map.setView(ds.defaultView.center, ds.defaultView.zoom);
