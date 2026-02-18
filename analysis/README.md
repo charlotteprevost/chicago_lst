@@ -182,6 +182,32 @@ Setup:
 
 Then the “Illinois high‑res • ECOSTRESS LST (70m)” dataset will render as a tile layer.
 
+### 2.5) Build a COG from your raster (PyQGIS-first)
+
+Use the helper script to convert a local raster to COG before upload:
+
+```bash
+python 24_make_ecostress_cog.py \
+  --input-raster /absolute/path/to/your_latest_lst.tif \
+  --output-cog outputs_ecostress_il_qc/ecostress_il_lst_70m_latest.cog.tif \
+  --engine auto
+```
+
+- `--engine auto` tries **PyQGIS** first, then falls back to rasterio COG driver.
+- Recommended upload target: S3/R2/GCS public object URL.
+
+After uploading COG to public storage, update frontend metadata in one command:
+
+```bash
+python 24_make_ecostress_cog.py \
+  --input-raster /absolute/path/to/your_latest_lst.tif \
+  --output-cog outputs_ecostress_il_qc/ecostress_il_lst_70m_latest.cog.tif \
+  --public-cog-url "https://your-bucket-or-domain/ecostress_il_lst_70m_latest.cog.tif" \
+  --meta-json ../data/ecostress_highres_latest.json
+```
+
+This writes the COG URL into `../data/ecostress_highres_latest.json` so the web map can request tiles via TiTiler.
+
 ### 3) Collapse duplicate tile hits + filter to usable observations
 
 ECOSTRESS is tiled; the same AOI+timestamp can be hit by multiple tiles. Collapse to one row per AOI per timestamp and filter low-coverage observations:
