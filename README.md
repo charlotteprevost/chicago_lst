@@ -29,7 +29,7 @@ This matches the repo layout and keeps hosting simple:
 2. **Render backend (if high-res ECOSTRESS tiles are needed)**
    - Create a Render service from this repo using `render.yaml`.
    - Service name should be `chicago-lst-tiles`.
-   - Confirm health endpoint: `/docs`
+   - Confirm health endpoint: `/`
    - Expected base URL in frontend config: `https://chicago-lst-tiles.onrender.com`
 
 3. **Frontend config**

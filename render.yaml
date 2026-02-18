@@ -5,7 +5,7 @@ services:
     rootDir: backend
     plan: free
     autoDeploy: true
-    healthCheckPath: /docs
+    healthCheckPath: /
     envVars:
       - key: TITILER_API_CORS_ORIGINS
         value: "*"
