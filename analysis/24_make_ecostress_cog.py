@@ -13,7 +13,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
             "Auto mode prefers PyQGIS when available, otherwise uses rasterio."
         )
     )
-    p.add_argument("--input-raster", required=True, help="Input raster path (GeoTIFF/LST raster).")
+    p.add_argument("--input-raster", required=False, help="Input raster path (GeoTIFF/LST raster).")
     p.add_argument(
         "--output-cog",
         default="outputs_ecostress_il_qc/ecostress_il_lst_70m_latest.cog.tif",
@@ -55,6 +55,11 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         "--meta-json",
         default="../data/ecostress_highres_latest.json",
         help="Path to frontend metadata JSON to update (default: ../data/ecostress_highres_latest.json).",
+    )
+    p.add_argument(
+        "--update-meta-only",
+        action="store_true",
+        help="Only update metadata JSON from --public-cog-url; skip COG conversion.",
     )
     return p
 
@@ -172,9 +177,20 @@ def _update_meta_json(meta_json: Path, public_cog_url: str) -> None:
 
 def main() -> None:
     args = _build_arg_parser().parse_args()
+    meta_json = Path(args.meta_json).expanduser().resolve()
+
+    if args.update_meta_only:
+        if not args.public_cog_url:
+            raise SystemExit("--update-meta-only requires --public-cog-url.")
+        _update_meta_json(meta_json=meta_json, public_cog_url=args.public_cog_url)
+        print("Metadata update complete (--update-meta-only).")
+        return
+
+    if not args.input_raster:
+        raise SystemExit("--input-raster is required unless --update-meta-only is used.")
+
     input_raster = Path(args.input_raster).expanduser().resolve()
     output_cog = Path(args.output_cog).expanduser().resolve()
-    meta_json = Path(args.meta_json).expanduser().resolve()
 
     _ensure_paths(input_raster, output_cog)
 

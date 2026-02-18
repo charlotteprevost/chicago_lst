@@ -208,6 +208,51 @@ python 24_make_ecostress_cog.py \
 
 This writes the COG URL into `../data/ecostress_highres_latest.json` so the web map can request tiles via TiTiler.
 
+### 2.6) One-command latest publish (auto pick latest timestamp)
+
+If `ecostress_cache/` has many `*_LST.tif` tiles, use the publisher to:
+
+1. pick the **latest timestamp**
+2. mosaic that timestamp's tiles (VRT)
+3. build one COG
+4. optionally upload
+5. update `../data/ecostress_highres_latest.json`
+
+```bash
+python 25_publish_latest_ecostress_cog.py \
+  --cache-dir ecostress_cache \
+  --output-cog outputs_ecostress_il_qc/ecostress_il_lst_70m_latest.cog.tif \
+  --engine auto
+```
+
+#### Upload to your own micha-server hub (SSH)
+
+Example with `rsync`:
+
+```bash
+python 25_publish_latest_ecostress_cog.py \
+  --cache-dir ecostress_cache \
+  --upload-method rsync \
+  --upload-target "youruser@yourserver:/var/www/cog/" \
+  --public-base-url "https://your-public-domain/cog"
+```
+
+Example with `scp`:
+
+```bash
+python 25_publish_latest_ecostress_cog.py \
+  --cache-dir ecostress_cache \
+  --upload-method scp \
+  --upload-target "youruser@yourserver:/var/www/cog/" \
+  --public-base-url "https://your-public-domain/cog"
+```
+
+Requirements for self-hosted COG URL:
+
+- URL must be publicly reachable by Render (HTTPS recommended)
+- server must support byte-range requests (`Accept-Ranges: bytes`)
+- CORS should allow `https://charlotteprevost.github.io`
+
 ### 3) Collapse duplicate tile hits + filter to usable observations
 
 ECOSTRESS is tiled; the same AOI+timestamp can be hit by multiple tiles. Collapse to one row per AOI per timestamp and filter low-coverage observations:
