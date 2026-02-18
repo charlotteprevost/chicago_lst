@@ -2,7 +2,7 @@ services:
   - type: web
     name: chicago-lst-tiles
     env: docker
-    rootDir: 08_GIS_PROJECTS/webapps/chicago_lst/backend
+    rootDir: backend
     plan: free
     autoDeploy: true
     healthCheckPath: /docs

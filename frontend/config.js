@@ -1,7 +1,7 @@
 export default {
   // Optional: TiTiler base URL (Render). Used for high-resolution ECOSTRESS tiles.
-  // Example: "https://chicago-lst-tiles.onrender.com"
-  titilerBaseUrl: "",
+  // If you deploy the backend service name as "chicago-lst-tiles", this URL matches by default.
+  titilerBaseUrl: "https://chicago-lst-tiles.onrender.com",
 
   gibs: {
     // NASA GIBS WMTS REST template.
