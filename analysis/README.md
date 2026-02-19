@@ -253,6 +253,31 @@ Requirements for self-hosted COG URL:
 - server must support byte-range requests (`Accept-Ranges: bytes`)
 - CORS should allow `https://charlotteprevost.github.io`
 
+### Data center opening dates (verified-only workflow)
+
+To add go-live dates and citation URLs to `../data/chicago_data_centers_183.csv`:
+
+1. Fill `data_center_opening_dates_manual.csv` with verified values.
+2. Run:
+
+```bash
+python 14_enrich_data_center_opening_dates.py \
+  --input-csv ../data/chicago_data_centers_183.csv \
+  --manual-seeds-csv data_center_opening_dates_manual.csv \
+  --queue-out opening_date_research_queue.csv
+```
+
+Outputs:
+
+- updates `../data/chicago_data_centers_183.csv` with:
+  - `went_live_date`
+  - `went_live_date_precision`
+  - `went_live_source_url`
+  - `went_live_source_title`
+  - `went_live_source_notes`
+  - `went_live_status`
+- writes unresolved rows to `opening_date_research_queue.csv`
+
 ### 3) Collapse duplicate tile hits + filter to usable observations
 
 ECOSTRESS is tiled; the same AOI+timestamp can be hit by multiple tiles. Collapse to one row per AOI per timestamp and filter low-coverage observations:
