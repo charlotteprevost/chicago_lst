@@ -36,4 +36,5 @@ This matches the repo layout and keeps hosting simple:
    - `frontend/config.js` must point `titilerBaseUrl` to your Render service URL.
    - If the Render URL differs, update this value and push again.
    - Default map layer uses TiTiler high-res ECOSTRESS and auto-falls back to GIBS if TiTiler/COG is unavailable.
+   - The in-app “How this works” panel explains overlays and analysis interpretation for non-technical users.
 

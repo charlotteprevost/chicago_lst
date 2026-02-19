@@ -22,6 +22,9 @@
       </div>
 
       <div class="topbar__right">
+        <button id="toggleHelp" class="help-btn" type="button" aria-expanded="false">
+          How this works
+        </button>
         <label class="control">
           <span>Dataset</span>
           <select id="dataset"></select>
@@ -46,6 +49,34 @@
     </header>
 
     <main class="layout">
+      <aside id="helpPanel" class="help-panel" hidden>
+        <h3>Step-by-step guide (plain English)</h3>
+        <ol>
+          <li>
+            <b>Background map (temperature):</b> the app shows satellite-derived night surface temperature over Illinois.
+            High-res ECOSTRESS is used when available; otherwise it falls back to a global thermal proxy.
+          </li>
+          <li>
+            <b>Data center points:</b> each point is a known data center location from your Chicago list.
+          </li>
+          <li>
+            <b>AOI risk overlay:</b> each polygon buffer has a risk score from recent heat behavior
+            (anomaly, hot-night frequency, and trend).
+          </li>
+          <li>
+            <b>DC effect overlay (DC Δ vs controls):</b> compares each data-center buffer temperature
+            against matched non-data-center control buffers at the same timestamps.
+          </li>
+          <li>
+            <b>Before vs after opening:</b> where opening-year metadata exists, popup stats show
+            pre-open and post-open windows to help interpret possible change after go-live.
+          </li>
+          <li>
+            <b>Why coverage can look one-sided:</b> ECOSTRESS is swath-based. A single scene may only cover
+            part of Illinois; full-state appearance improves when latest same-timestamp tiles are mosaicked.
+          </li>
+        </ol>
+      </aside>
       <div id="map" class="map"></div>
     </main>
 

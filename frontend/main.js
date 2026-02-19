@@ -177,6 +177,8 @@ async function makeTitilerLayer(ds) {
 }
 
 const els = {
+  toggleHelp: document.getElementById("toggleHelp"),
+  helpPanel: document.getElementById("helpPanel"),
   dataset: document.getElementById("dataset"),
   overlayRisk: document.getElementById("overlayRisk"),
   overlayDC: document.getElementById("overlayDC"),
@@ -193,6 +195,18 @@ const els = {
 function setStatus(msg) {
   if (els.status) els.status.textContent = msg || "";
 }
+
+function setHelpPanelOpen(open) {
+  if (!els.helpPanel || !els.toggleHelp) return;
+  els.helpPanel.hidden = !open;
+  els.toggleHelp.setAttribute("aria-expanded", open ? "true" : "false");
+  els.toggleHelp.textContent = open ? "Hide guide" : "How this works";
+}
+
+els.toggleHelp?.addEventListener("click", () => {
+  const isOpen = !els.helpPanel?.hidden;
+  setHelpPanelOpen(!isOpen);
+});
 
 const datasets = config.gibs.datasets;
 let datasetId = config.gibs.defaultDatasetId;
@@ -529,7 +543,19 @@ async function loadEffectLayer() {
           <div style="opacity:.75;margin-top:6px"><b>Buffer</b>: ${p.buffer_m ?? "n/a"} m</div>
           <div style="opacity:.75"><b>Span</b>: ${p.first_dt ?? "n/a"} → ${p.last_dt ?? "n/a"}</div>
           <div style="opacity:.75;margin-top:6px">
-            This aggregates per‑timestamp DC−control differences up to today (controls are timestamp-matched).
+            This aggregates per‑timestamp DC−control differences across all available dates
+            (controls are timestamp-matched).
+          </div>
+          <hr style="border:0;border-top:1px solid rgba(255,255,255,.15);margin:8px 0" />
+          <div><b>Opening date (if known)</b>: ${p.opening_date ?? "n/a"}</div>
+          <div><b>Pre-open observations</b>: ${fmtMaybeInt(p.n_pre_open_obs)}</div>
+          <div><b>Post-open observations</b>: ${fmtMaybeInt(p.n_post_open_obs)}</div>
+          <div><b>Pre-open window</b>: ${(p.pre_open_first_dt ?? "n/a")} → ${(p.pre_open_last_dt ?? "n/a")}</div>
+          <div><b>Post-open window</b>: ${(p.post_open_first_dt ?? "n/a")} → ${(p.post_open_last_dt ?? "n/a")}</div>
+          <div><b>Pre-open Δ mean</b>: ${fmtNum(p.delta_pre_open_mean_c, 2)} °C</div>
+          <div><b>Post-open Δ mean</b>: ${fmtNum(p.delta_post_open_mean_c, 2)} °C</div>
+          <div style="opacity:.75;margin-top:6px">
+            If opening date is n/a, the site metadata lacks opening year.
           </div>
         </div>`
       );
@@ -744,6 +770,7 @@ els.play?.addEventListener("click", () => {
 });
 
 // Init
+setHelpPanelOpen(true);
 updateTime(current, { keepPlaying: false });
 syncRiskOverlay();
 syncDcOverlay();

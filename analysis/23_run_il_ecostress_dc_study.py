@@ -288,7 +288,9 @@ def main() -> None:
     df = ts.merge(meta, on="aoi_id", how="left")
     df["dt"] = pd.to_datetime(df["date"], errors="coerce", utc=True)
 
-    # Join attributes + compute opening_date, then filter DC rows to dt >= opening_date.
+    # Join attributes + compute opening_date.
+    # Keep both pre-open and post-open observations so the web map can explain
+    # "before vs after data center opening" windows directly.
     if attrs is not None and "opening_year" in attrs.columns:
         attrs2 = attrs.copy()
         attrs2["opening_year"] = pd.to_numeric(attrs2["opening_year"], errors="coerce")
@@ -298,12 +300,8 @@ def main() -> None:
             errors="coerce",
         )
         df = df.merge(attrs2, on="site_id", how="left", suffixes=("", "_attr"))
-        # Filter only DC rows (controls have no opening date).
-        mask_dc = df["is_data_center"] == 1
-        has_open = df["opening_date"].notna()
-        df = df[(~mask_dc) | (~has_open) | (df["dt"] >= df["opening_date"])].copy()
 
-    # Keep controls on the same timestamps as DC rows (after opening-date filtering).
+    # Keep controls on the same timestamps as DC rows.
     dc_dates = df.loc[df["is_data_center"] == 1, "date"].dropna().unique().tolist()
     if dc_dates:
         df = df[(df["is_data_center"] == 1) | (df["date"].isin(dc_dates))].copy()
