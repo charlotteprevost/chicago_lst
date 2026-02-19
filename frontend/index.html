@@ -34,14 +34,35 @@
           <label class="check">
             <input id="overlayRisk" type="checkbox" checked />
             <span>AOI risk</span>
+            <span
+              class="info-tip"
+              tabindex="0"
+              aria-label="What is AOI risk?"
+              data-tip="AOI risk summarizes recent heat behavior in each buffer using anomaly, hot-night frequency, and trend."
+              >?</span
+            >
           </label>
           <label class="check">
             <input id="overlayDC" type="checkbox" checked />
             <span>Data centers</span>
+            <span
+              class="info-tip"
+              tabindex="0"
+              aria-label="What are data center points?"
+              data-tip="These points are known data center locations from the Chicago list used in this analysis."
+              >?</span
+            >
           </label>
           <label class="check">
             <input id="overlayEffect" type="checkbox" checked />
             <span>DC Δ vs controls</span>
+            <span
+              class="info-tip"
+              tabindex="0"
+              aria-label="What is DC delta versus controls?"
+              data-tip="DC Δ compares each data-center buffer temperature against matched non-data-center control buffers at the same timestamps."
+              >?</span
+            >
           </label>
         </label>
         <span id="status" class="status"></span>

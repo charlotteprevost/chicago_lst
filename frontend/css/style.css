@@ -88,6 +88,50 @@ button:hover { background: rgba(255, 255, 255, 0.14); }
   accent-color: #6ee7ff;
 }
 
+.info-tip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  color: #d9f7ff;
+  background: rgba(110, 231, 255, 0.18);
+  cursor: help;
+}
+
+.info-tip::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  min-width: 220px;
+  max-width: 300px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(11, 16, 32, 0.95);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.35;
+  white-space: normal;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+  z-index: 1200;
+}
+
+.info-tip:hover::after,
+.info-tip:focus-visible::after {
+  opacity: 1;
+}
+
 .status {
   font-size: 12px;
   opacity: 0.9;
