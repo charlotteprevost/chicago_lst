@@ -19,6 +19,12 @@ def weighted_mean(values: pd.Series, weights: pd.Series) -> float:
     return float(np.average(v.to_numpy()[m], weights=w.to_numpy()[m]))
 
 
+def iso_or_none(ts: pd.Timestamp | None) -> str | None:
+    if ts is None or pd.isna(ts):
+        return None
+    return pd.Timestamp(ts).isoformat()
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", required=True, help="Config JSON used for the run (generated or manual)")
@@ -73,8 +79,20 @@ def main() -> None:
             return float("nan")
         return float(np.percentile(v, 90))
 
+    # Normalize opening date field if present.
+    if "opening_date" in dc2.columns:
+        dc2["opening_date"] = pd.to_datetime(dc2["opening_date"], errors="coerce", utc=True)
+    else:
+        dc2["opening_date"] = pd.NaT
+
     grouped = []
     for aoi_id, g in dc2.groupby("aoi_id"):
+        g = g.copy()
+        g["dt"] = pd.to_datetime(g["dt"], errors="coerce", utc=True)
+        open_dt = g["opening_date"].dropna().min() if g["opening_date"].notna().any() else pd.NaT
+        pre = g[g["dt"] < open_dt] if pd.notna(open_dt) else g.iloc[0:0]
+        post = g[g["dt"] >= open_dt] if pd.notna(open_dt) else g.iloc[0:0]
+
         grouped.append(
             {
                 "aoi_id": str(aoi_id),
@@ -82,11 +100,24 @@ def main() -> None:
                 "n_obs": int(np.isfinite(pd.to_numeric(g["delta_c_dc_minus_ctrl"], errors="coerce")).sum()),
                 "first_dt": g["dt"].min().isoformat() if pd.notna(g["dt"].min()) else None,
                 "last_dt": g["dt"].max().isoformat() if pd.notna(g["dt"].max()) else None,
+                "opening_date": iso_or_none(open_dt),
+                "n_pre_open_obs": int(np.isfinite(pd.to_numeric(pre["delta_c_dc_minus_ctrl"], errors="coerce")).sum()),
+                "n_post_open_obs": int(np.isfinite(pd.to_numeric(post["delta_c_dc_minus_ctrl"], errors="coerce")).sum()),
+                "pre_open_first_dt": iso_or_none(pre["dt"].min() if not pre.empty else None),
+                "pre_open_last_dt": iso_or_none(pre["dt"].max() if not pre.empty else None),
+                "post_open_first_dt": iso_or_none(post["dt"].min() if not post.empty else None),
+                "post_open_last_dt": iso_or_none(post["dt"].max() if not post.empty else None),
                 "delta_mean_c": weighted_mean(g["delta_c_dc_minus_ctrl"], g["count"]),
                 "delta_median_c": float(pd.to_numeric(g["delta_c_dc_minus_ctrl"], errors="coerce").median()),
                 "delta_p90_c": _p90(g["delta_c_dc_minus_ctrl"]),
                 "dc_mean_c": weighted_mean(g[args.value_col], g["count"]),
                 "ctrl_mean_c": weighted_mean(g["ctrl_mean"], g["count"]),
+                "delta_pre_open_mean_c": weighted_mean(pre["delta_c_dc_minus_ctrl"], pre["count"]) if not pre.empty else float("nan"),
+                "delta_post_open_mean_c": weighted_mean(post["delta_c_dc_minus_ctrl"], post["count"]) if not post.empty else float("nan"),
+                "dc_pre_open_mean_c": weighted_mean(pre[args.value_col], pre["count"]) if not pre.empty else float("nan"),
+                "dc_post_open_mean_c": weighted_mean(post[args.value_col], post["count"]) if not post.empty else float("nan"),
+                "ctrl_pre_open_mean_c": weighted_mean(pre["ctrl_mean"], pre["count"]) if not pre.empty else float("nan"),
+                "ctrl_post_open_mean_c": weighted_mean(post["ctrl_mean"], post["count"]) if not post.empty else float("nan"),
             }
         )
 
@@ -106,11 +137,24 @@ def main() -> None:
         "n_obs",
         "first_dt",
         "last_dt",
+        "opening_date",
+        "n_pre_open_obs",
+        "n_post_open_obs",
+        "pre_open_first_dt",
+        "pre_open_last_dt",
+        "post_open_first_dt",
+        "post_open_last_dt",
         "delta_mean_c",
         "delta_median_c",
         "delta_p90_c",
         "dc_mean_c",
         "ctrl_mean_c",
+        "delta_pre_open_mean_c",
+        "delta_post_open_mean_c",
+        "dc_pre_open_mean_c",
+        "dc_post_open_mean_c",
+        "ctrl_pre_open_mean_c",
+        "ctrl_post_open_mean_c",
         "geometry",
     ]
     keep = [c for c in keep if c in out_gdf.columns]
