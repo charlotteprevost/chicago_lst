@@ -31,7 +31,7 @@ real rasters are large or stored elsewhere.
 Do **not** install into conda `base`. Create a dedicated env for this project.
 
 ```bash
-cd /Users/cha/Sync/CAREER/08_GIS_PROJECTS/webapps/chicago_lst/analysis
+cd /Users/cha/Sync/PRIVATE/10_PROJECTS/webapps/chicago_lst/analysis
 conda env create -f environment.yml
 conda activate chicago_lst
 ```
