@@ -31,9 +31,9 @@ real rasters are large or stored elsewhere.
 Do **not** install into conda `base`. Create a dedicated env for this project.
 
 ```bash
-cd /Users/cha/Sync/PRIVATE/10_PROJECTS/webapps/chicago_lst/analysis
-conda env create -f environment.yml
-conda activate chicago_lst
+cd /Users/cha/Sync/PRIVATE/10_PROJECTS/webapps/chicago_lst/analysis  # enter analysis folder
+conda env create -f environment.yml                                   # create conda env from lockfile
+conda activate chicago_lst                                            # activate project env
 ```
 
 ### Earthdata authentication (required to download ECOSTRESS)
@@ -57,13 +57,13 @@ To download ECOSTRESS tiles via `earthaccess`, you need an Earthdata login. **Pr
 If you prefer `venv`, you can still use:
 
 ```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+python3 -m venv .venv && source .venv/bin/activate  # create and activate venv
+pip install -r requirements.txt                      # install Python deps
 
-python 00_make_demo_data.py
-python 01_extract_zonal_timeseries.py --config config.demo.json
-python 02_compute_anomaly_and_risk.py --config config.demo.json
-python 03_export_geojson.py --config config.demo.json
+python 00_make_demo_data.py                                  # generate synthetic demo rasters/AOIs
+python 01_extract_zonal_timeseries.py --config config.demo.json  # extract zonal stats by AOI/date
+python 02_compute_anomaly_and_risk.py --config config.demo.json  # compute anomaly and risk metrics
+python 03_export_geojson.py --config config.demo.json            # export GeoJSON overlay for map
 ```
 
 Open the webapp and point it at `data/aoi_risk_latest.geojson` once we wire the layer in.
@@ -81,6 +81,7 @@ Parsed it into a clean CSV:
 python 12_parse_chicago_data_centers.py \
   --input ../data/chicago_data_centers_183_source.txt \
   --output ../data/chicago_data_centers_183.csv
+# parse raw pasted source list into structured CSV
 ```
 
 Then geocode the locations (to GeoJSON):
@@ -90,6 +91,7 @@ python 13_geocode_data_centers.py \
   --input_csv ../data/chicago_data_centers_183.csv \
   --output_geojson ../data/chicago_data_centers_183.geojson \
   --use_nominatim
+# geocode CSV rows into point GeoJSON (rate-limited external service)
 ```
 
 Now we can buffer these points and run Case Study A (risk scoring) on the buffers.
@@ -130,8 +132,8 @@ Outputs:
 `earthaccess` downloads require a NASA Earthdata login. Use env vars (non-interactive):
 
 ```bash
-export EARTHDATA_USERNAME="your_username"
-export EARTHDATA_PASSWORD="your_password"
+export EARTHDATA_USERNAME="your_username"  # Earthdata account username
+export EARTHDATA_PASSWORD="your_password"  # Earthdata account password
 ```
 
 ### 1) Ensure you have data center points
@@ -147,6 +149,8 @@ python 13_geocode_data_centers.py \
   --input_csv ../data/chicago_data_centers_183.csv \
   --output_geojson ../data/chicago_data_centers_183.geojson \
   --use_nominatim
+# first command parses source text into CSV
+# second command geocodes CSV addresses into GeoJSON points
 ```
 
 ### 2) Run the Illinois ECOSTRESS pipeline
@@ -160,6 +164,7 @@ python 23_run_il_ecostress_dc_study.py \
   --end 2025-07-31 \
   --buffers_m 250,500,1000 \
   --outputs_dir outputs_ecostress_il_qc
+# run Illinois ECOSTRESS study for selected window and buffer sizes
 ```
 
 Notes:
@@ -191,6 +196,7 @@ python 24_make_ecostress_cog.py \
   --input-raster /absolute/path/to/your_latest_lst.tif \
   --output-cog outputs_ecostress_il_qc/ecostress_il_lst_70m_latest.cog.tif \
   --engine auto
+# convert one raster into Cloud Optimized GeoTIFF
 ```
 
 - `--engine auto` tries **PyQGIS** first, then falls back to rasterio COG driver.
@@ -204,6 +210,7 @@ python 24_make_ecostress_cog.py \
   --output-cog outputs_ecostress_il_qc/ecostress_il_lst_70m_latest.cog.tif \
   --public-cog-url "https://your-bucket-or-domain/ecostress_il_lst_70m_latest.cog.tif" \
   --meta-json ../data/ecostress_highres_latest.json
+# write public COG URL into frontend metadata JSON
 ```
 
 This writes the COG URL into `../data/ecostress_highres_latest.json` so the web map can request tiles via TiTiler.
@@ -223,6 +230,7 @@ python 25_publish_latest_ecostress_cog.py \
   --cache-dir ecostress_cache \
   --output-cog outputs_ecostress_il_qc/ecostress_il_lst_70m_latest.cog.tif \
   --engine auto
+# auto-pick latest timestamp, mosaic, and publish-ready COG
 ```
 
 #### Upload to your own micha-server hub (SSH)
@@ -235,6 +243,7 @@ python 25_publish_latest_ecostress_cog.py \
   --upload-method rsync \
   --upload-target "youruser@yourserver:/var/www/cog/" \
   --public-base-url "https://your-public-domain/cog"
+# publish latest COG using rsync to your server
 ```
 
 Example with `scp`:
@@ -245,6 +254,7 @@ python 25_publish_latest_ecostress_cog.py \
   --upload-method scp \
   --upload-target "youruser@yourserver:/var/www/cog/" \
   --public-base-url "https://your-public-domain/cog"
+# publish latest COG using scp to your server
 ```
 
 Requirements for self-hosted COG URL:
@@ -265,6 +275,7 @@ python 14_enrich_data_center_opening_dates.py \
   --input-csv ../data/chicago_data_centers_183.csv \
   --manual-seeds-csv data_center_opening_dates_manual.csv \
   --queue-out opening_date_research_queue.csv
+# merge verified opening dates and regenerate unresolved-research queue
 ```
 
 Outputs:
@@ -290,6 +301,8 @@ python 30_collapse_and_filter_observations.py \
 python 31_recompute_summary_from_usable.py \
   --input outputs_ecostress_il_qc/collapsed_aoi_dt_usable.csv \
   --out_dir outputs_ecostress_il_qc
+# collapse duplicate AOI-date tile hits and filter low-coverage rows
+# then recompute summary metrics from usable observations
 ```
 
 ### 4) Covariates + covariate-matched controls (recommended)
@@ -312,6 +325,7 @@ python 34_match_controls_by_covariates.py \
   --collapsed outputs_ecostress_il_qc/collapsed_aoi_dt_usable.csv \
   --covariates outputs_ecostress_il_qc/aoi_covariates.csv \
   --out outputs_ecostress_il_qc/matched_controls.csv
+# build covariate manifest, extract AOI covariates, then match controls
 ```
 
 ### 5) Build modeling table + first-pass model
@@ -326,4 +340,5 @@ python 36_build_modeling_table.py \
 python 40_model_panel.py \
   --input outputs_ecostress_il_qc/modeling_table.csv \
   --out_dir outputs_ecostress_il_qc/model
+# assemble panel-model table and run first-pass model
 ```
