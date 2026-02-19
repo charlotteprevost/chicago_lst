@@ -1,6 +1,6 @@
 {
-  "note": "Replace cog_url with a publicly reachable COG (e.g. S3/R2). This file is meant to be updated by CI.",
-  "cog_url": "https://example.com/ecostress_il_lst_70m_latest.cog.tif",
+  "note": "Updated by analysis/24_make_ecostress_cog.py",
+  "cog_url": "https://pub-35e731c3513942bd8c03f959efee69d1.r2.dev/ecostress_il_lst_70m_latest.cog.tif",
   "tms": "WebMercatorQuad",
   "render": {
     "colormap_name": "inferno",
@@ -8,4 +8,3 @@
     "format": "png"
   }
 }
-
