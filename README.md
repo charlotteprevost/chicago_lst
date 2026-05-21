@@ -1,6 +1,24 @@
-## Chicago Data Centers vs. Land Surface Temperature 
+## Chicago Data Centers vs. Land Surface Temperature
 
 Interactive map and analysis project about nighttime surface heat and Chicago-area data centers.
+
+**Live app:** `https://charlotteprevost.github.io/chicago_lst/`
+
+## Portfolio quick view
+
+### Screenshots
+
+![Map overview — AOI, data centers, and thermal context](docs/portfolio_screenshots/shot-map-overview.svg)
+![Layers — DC delta vs controls and legend](docs/portfolio_screenshots/shot-layers-delta.svg)
+
+The files above are **SVG placeholders** (versioned, lightweight). Replace them with real PNG/WebP captures from the live site or local when you want pixel-perfect portfolio shots; keep the same paths or update the links here.
+
+### Demo flow (local)
+
+1. **Serve the frontend:** From `frontend/`, run `python -m http.server 8080` (or any static server on a free port).
+2. **Open the app:** Visit `http://localhost:8080` in a browser.
+3. **Configure tiles (optional):** For high-res ECOSTRESS via TiTiler, set `titilerBaseUrl` in `frontend/config.js` to your deployed Render URL (see **Render (TiTiler) publish** below).
+4. **Walk the story:** Turn on AOI risk, data center locations, and the DC-vs-control delta layer; pan/zoom over Chicago and read values against the legend to see how buffers compare to matched controls.
 
 ---
 
@@ -198,7 +216,7 @@ Risk score (clipped to 0..100):
 - `trend_score = clip(trend_c_per_year, 0, 5) * 5`
 - `risk_score = clip(z_clip*10 + freq_score + trend_score, 0, 100)`
 
-### B) Data center vs control comparative stats (`analysis/23_`* + `analysis/06_*`)
+### B) Data center vs control comparative stats (`analysis/23_`_ + `analysis/06\__`)
 
 Per timestamp and buffer size:
 
@@ -250,4 +268,3 @@ Opening dates in `chicago_data_centers_183.csv` follow a strict verification pol
 - Remote sensing has missingness (cloud, QC masks, temporal gaps).
 - Control matching reduces but does not eliminate confounding.
 - Comparative deltas are observational indicators, not causal proof.
-

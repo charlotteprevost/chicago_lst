@@ -179,21 +179,34 @@ async function makeTitilerLayer(ds) {
 const els = {
   toggleHelp: document.getElementById("toggleHelp"),
   helpPanel: document.getElementById("helpPanel"),
+  toggleEng: document.getElementById("toggleEng"),
+  engPanel: document.getElementById("engPanel"),
+  engRefreshTs: document.getElementById("engRefreshTs"),
+  engApiHealth: document.getElementById("engApiHealth"),
   dataset: document.getElementById("dataset"),
   overlayRisk: document.getElementById("overlayRisk"),
   overlayDC: document.getElementById("overlayDC"),
   overlayEffect: document.getElementById("overlayEffect"),
+  siteFilter: document.getElementById("siteFilter"),
+  bufferFilter: document.getElementById("bufferFilter"),
   date: document.getElementById("date"),
   time: document.getElementById("time"),
   timeWrap: document.getElementById("timeWrap"),
   prev: document.getElementById("prev"),
   next: document.getElementById("next"),
   play: document.getElementById("play"),
+  metricVisibleAoIs: document.getElementById("metricVisibleAoIs"),
+  metricMeanDelta: document.getElementById("metricMeanDelta"),
+  metricMaxRisk: document.getElementById("metricMaxRisk"),
+  exportCsv: document.getElementById("exportCsv"),
+  exportGeojson: document.getElementById("exportGeojson"),
   status: document.getElementById("status"),
 };
 
 function setStatus(msg) {
-  if (els.status) els.status.textContent = msg || "";
+  if (!els.status) return;
+  els.status.textContent = msg || "";
+  els.status.classList.toggle("status--loading", /loading/i.test(msg || ""));
 }
 
 function setHelpPanelOpen(open) {
@@ -203,9 +216,20 @@ function setHelpPanelOpen(open) {
   els.toggleHelp.textContent = open ? "Hide guide" : "How this works";
 }
 
+function setEngPanelOpen(open) {
+  if (!els.engPanel || !els.toggleEng) return;
+  els.engPanel.hidden = !open;
+  els.toggleEng.setAttribute("aria-expanded", open ? "true" : "false");
+}
+
 els.toggleHelp?.addEventListener("click", () => {
   const isOpen = !els.helpPanel?.hidden;
   setHelpPanelOpen(!isOpen);
+});
+
+els.toggleEng?.addEventListener("click", () => {
+  const isOpen = !els.engPanel?.hidden;
+  setEngPanelOpen(!isOpen);
 });
 
 const datasets = config.gibs.datasets;
@@ -286,6 +310,16 @@ let timer = null;
 
 const map = L.map("map", { worldCopyJump: true });
 
+const mapShell = document.getElementById("map-shell");
+const mapLoadingEl = document.getElementById("map-loading");
+
+function setMapLoading(on) {
+  if (!mapShell) return;
+  mapShell.classList.toggle("map-shell--loading", Boolean(on));
+  mapShell.setAttribute("aria-busy", on ? "true" : "false");
+  if (mapLoadingEl) mapLoadingEl.setAttribute("aria-hidden", on ? "false" : "true");
+}
+
 // Illinois-only focus (don’t let the map drift to global view).
 const IL_BOUNDS = L.latLngBounds(
   [36.97, -91.52], // SW
@@ -307,28 +341,68 @@ map.setView(ds0.defaultView.center, ds0.defaultView.zoom);
 syncControlsFromCurrent(ds0, current);
 
 let baseLayer = null;
-async function setBaseLayerForDataset(ds) {
-  if (baseLayer) map.removeLayer(baseLayer);
-  if (ds.type === "titiler_cog") {
-    setStatus("Loading ECOSTRESS high‑res tiles…");
-    baseLayer = await makeTitilerLayer(ds);
-    baseLayer.addTo(map);
-    setStatus("ECOSTRESS high‑res tiles loaded.");
-    return;
-  }
+let baseLayerLoadTimer = null;
 
-  baseLayer = new GibsTimeLayer({
-    urlTemplate: config.gibs.urlTemplate,
-    layerId: ds.layer,
-    tileMatrixSet: ds.tileMatrixSet,
-    time: isoTimeForDataset(ds, current),
-    maxZoom: ds.maxZoom ?? 7,
-    service: ds.service ?? "best",
-  });
-  baseLayer.addTo(map);
-  baseLayer.on("tileerror", (e) => {
-    console.warn("GIBS tileerror", { coords: e?.coords ?? null, url: e?.tile?.src ?? null });
-  });
+async function setBaseLayerForDataset(ds) {
+  setMapLoading(true);
+  if (baseLayerLoadTimer) {
+    window.clearTimeout(baseLayerLoadTimer);
+    baseLayerLoadTimer = null;
+  }
+  try {
+    if (baseLayer) map.removeLayer(baseLayer);
+    if (ds.type === "titiler_cog") {
+      setStatus("Loading ECOSTRESS high‑res tiles…");
+      baseLayer = await makeTitilerLayer(ds);
+      baseLayer.addTo(map);
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        if (baseLayerLoadTimer) {
+          window.clearTimeout(baseLayerLoadTimer);
+          baseLayerLoadTimer = null;
+        }
+        setMapLoading(false);
+        setStatus("ECOSTRESS high‑res tiles loaded.");
+      };
+      baseLayerLoadTimer = window.setTimeout(finish, 15000);
+      baseLayer.once("load", finish);
+      return;
+    }
+
+    setStatus("Loading GIBS thermal tiles…");
+    baseLayer = new GibsTimeLayer({
+      urlTemplate: config.gibs.urlTemplate,
+      layerId: ds.layer,
+      tileMatrixSet: ds.tileMatrixSet,
+      time: isoTimeForDataset(ds, current),
+      maxZoom: ds.maxZoom ?? 7,
+      service: ds.service ?? "best",
+    });
+    baseLayer.addTo(map);
+    baseLayer.on("tileerror", (e) => {
+      console.warn("GIBS tileerror", { coords: e?.coords ?? null, url: e?.tile?.src ?? null });
+    });
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      if (baseLayerLoadTimer) {
+        window.clearTimeout(baseLayerLoadTimer);
+        baseLayerLoadTimer = null;
+      }
+      setMapLoading(false);
+      if (typeof updateTime === "function") {
+        updateTime(current, { keepPlaying: true });
+      }
+    };
+    baseLayerLoadTimer = window.setTimeout(finish, 15000);
+    baseLayer.once("load", finish);
+  } catch (e) {
+    setMapLoading(false);
+    throw e;
+  }
 }
 
 async function switchToFallback(reason) {
@@ -357,10 +431,206 @@ setBaseLayerForDataset(ds0).catch((e) => {
 // --- AOI risk overlay (GeoJSON) ---
 const riskCfg = config.overlays?.riskAoi ?? null;
 let riskLayer = null;
+let riskData = null;
 const dcCfg = config.overlays?.dataCenters ?? null;
 let dcLayer = null;
+let dcData = null;
 const effectCfg = config.overlays?.dcEffect ?? null;
 let effectLayer = null;
+let effectData = null;
+let siteFilterValue = "all";
+let bufferFilterValue = "all";
+
+function siteKeyFromProps(p = {}) {
+  const candidate = p.site_id ?? p.site_name ?? p.name ?? null;
+  if (candidate === null || candidate === undefined) return null;
+  const out = String(candidate).trim();
+  return out ? out : null;
+}
+
+function bufferKeyFromProps(p = {}) {
+  const raw = p.buffer_m;
+  if (raw === null || raw === undefined || raw === "") return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return null;
+  return String(Math.round(n));
+}
+
+function featurePassesFilters(p = {}, { requireBuffer = false } = {}) {
+  const s = siteKeyFromProps(p);
+  const b = bufferKeyFromProps(p);
+  if (siteFilterValue !== "all" && s !== siteFilterValue) return false;
+  if (bufferFilterValue !== "all") {
+    if (requireBuffer && !b) return false;
+    if (b && b !== bufferFilterValue) return false;
+  }
+  return true;
+}
+
+function rebuildFilterControls() {
+  const siteKeys = new Set();
+  const bufferKeys = new Set();
+  const allFeatures = [
+    ...(riskData?.features ?? []),
+    ...(dcData?.features ?? []),
+    ...(effectData?.features ?? []),
+  ];
+  for (const f of allFeatures) {
+    const p = f?.properties ?? {};
+    const s = siteKeyFromProps(p);
+    const b = bufferKeyFromProps(p);
+    if (s) siteKeys.add(s);
+    if (b) bufferKeys.add(b);
+  }
+
+  if (els.siteFilter) {
+    const prev = siteFilterValue;
+    els.siteFilter.innerHTML = '<option value="all">All sites</option>';
+    [...siteKeys].sort((a, b) => a.localeCompare(b)).forEach((k) => {
+      const opt = document.createElement("option");
+      opt.value = k;
+      opt.textContent = k;
+      els.siteFilter.appendChild(opt);
+    });
+    if ([...siteKeys].includes(prev)) {
+      els.siteFilter.value = prev;
+      siteFilterValue = prev;
+    } else {
+      els.siteFilter.value = "all";
+      siteFilterValue = "all";
+    }
+  }
+
+  if (els.bufferFilter) {
+    const prev = bufferFilterValue;
+    els.bufferFilter.innerHTML = '<option value="all">All buffers</option>';
+    [...bufferKeys]
+      .map((v) => Number(v))
+      .filter((v) => Number.isFinite(v))
+      .sort((a, b) => a - b)
+      .forEach((n) => {
+        const k = String(Math.round(n));
+        const opt = document.createElement("option");
+        opt.value = k;
+        opt.textContent = `${k} m`;
+        els.bufferFilter.appendChild(opt);
+      });
+    if ([...bufferKeys].includes(prev)) {
+      els.bufferFilter.value = prev;
+      bufferFilterValue = prev;
+    } else {
+      els.bufferFilter.value = "all";
+      bufferFilterValue = "all";
+    }
+  }
+  updateInsightPanel();
+}
+
+function getFilteredFeatures(gj, { requireBuffer = false } = {}) {
+  return (gj?.features ?? []).filter((f) =>
+    featurePassesFilters(f?.properties ?? {}, { requireBuffer })
+  );
+}
+
+function setMetric(el, value) {
+  if (!el) return;
+  el.textContent = value;
+}
+
+function currentExportContext() {
+  if (els.overlayEffect?.checked && effectData) {
+    return {
+      name: "dc_effect_filtered",
+      features: getFilteredFeatures(effectData, { requireBuffer: true }),
+    };
+  }
+  if (els.overlayRisk?.checked && riskData) {
+    return {
+      name: "aoi_risk_filtered",
+      features: getFilteredFeatures(riskData, { requireBuffer: false }),
+    };
+  }
+  if (els.overlayDC?.checked && dcData) {
+    return {
+      name: "data_centers_filtered",
+      features: getFilteredFeatures(dcData, { requireBuffer: false }),
+    };
+  }
+  return { name: "overlay_filtered", features: [] };
+}
+
+function updateInsightPanel() {
+  const riskFeatures = getFilteredFeatures(riskData, { requireBuffer: false });
+  const effectFeatures = getFilteredFeatures(effectData, { requireBuffer: true });
+  const visibleAois = riskFeatures.length;
+  setMetric(els.metricVisibleAoIs, String(visibleAois || 0));
+
+  const deltas = effectFeatures
+    .map((f) => Number(f?.properties?.delta_mean_c))
+    .filter((v) => Number.isFinite(v));
+  const meanDelta = deltas.length
+    ? deltas.reduce((a, b) => a + b, 0) / deltas.length
+    : Number.NaN;
+  setMetric(els.metricMeanDelta, Number.isFinite(meanDelta) ? fmtNum(meanDelta, 2) : "n/a");
+
+  const risks = riskFeatures
+    .map((f) => Number(f?.properties?.risk_score))
+    .filter((v) => Number.isFinite(v));
+  const maxRisk = risks.length ? Math.max(...risks) : Number.NaN;
+  setMetric(els.metricMaxRisk, Number.isFinite(maxRisk) ? fmtNum(maxRisk, 1) : "n/a");
+  updateEngineeringPanel();
+}
+
+function updateEngineeringPanel() {
+  if (els.engApiHealth) {
+    els.engApiHealth.href = joinUrl(config.titilerBaseUrl, "/");
+  }
+  if (!els.engRefreshTs) return;
+
+  const candidates = [];
+  for (const f of riskData?.features ?? []) {
+    const dt = f?.properties?.date;
+    if (dt) candidates.push(dt);
+  }
+  for (const f of effectData?.features ?? []) {
+    const dt = f?.properties?.last_dt;
+    if (dt) candidates.push(dt);
+  }
+  if (!candidates.length) {
+    els.engRefreshTs.textContent = "n/a";
+    return;
+  }
+  const parsed = candidates
+    .map((s) => new Date(String(s)))
+    .filter((d) => Number.isFinite(d.getTime()))
+    .sort((a, b) => b.getTime() - a.getTime());
+  els.engRefreshTs.textContent = parsed.length ? parsed[0].toISOString() : "n/a";
+}
+
+function triggerDownload(filename, text, mimeType) {
+  const blob = new Blob([text], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function toCsv(features) {
+  if (!features.length) return "message\nNo filtered features available\n";
+  const rows = features.map((f) => f?.properties ?? {});
+  const cols = [...new Set(rows.flatMap((r) => Object.keys(r)))];
+  const esc = (v) => {
+    const s = String(v ?? "");
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const lines = [cols.join(",")];
+  rows.forEach((r) => lines.push(cols.map((c) => esc(r[c])).join(",")));
+  return `${lines.join("\n")}\n`;
+}
 
 function riskColor(score) {
   const s = Number(score);
@@ -383,7 +653,7 @@ function riskStyle(feature) {
   };
 }
 
-async function loadRiskLayer() {
+async function fetchRiskData() {
   if (!riskCfg?.url) return null;
   let res = await fetch(riskCfg.url, { cache: "no-store" });
   // If latest isn't present (common when outputs are gitignored), fall back to a sample file.
@@ -392,11 +662,16 @@ async function loadRiskLayer() {
   }
   if (!res.ok) throw new Error(`Overlay fetch failed: ${res.status} ${res.statusText}`);
   const gj = await res.json();
+  return gj;
+}
+
+function buildRiskLayer(gj) {
   if (!gj?.features?.length) {
     setStatus("AOI risk overlay loaded (0 features). Run analysis export to populate it.");
   }
 
   const layer = L.geoJSON(gj, {
+    filter: (f) => featurePassesFilters(f?.properties ?? {}, { requireBuffer: false }),
     style: riskStyle,
     onEachFeature: (f, l) => {
       const p = f?.properties ?? {};
@@ -473,8 +748,12 @@ async function loadDataCentersLayer() {
   if (!dcCfg?.url) return null;
   const res = await fetch(dcCfg.url, { cache: "no-store" });
   if (!res.ok) throw new Error(`Overlay fetch failed: ${res.status} ${res.statusText}`);
-  const gj = await res.json();
+  return await res.json();
+}
+
+function buildDataCentersLayer(gj) {
   const layer = L.geoJSON(gj, {
+    filter: (f) => featurePassesFilters(f?.properties ?? {}, { requireBuffer: false }),
     pointToLayer: (_f, latlng) => L.circleMarker(latlng, dcPointStyle()),
     onEachFeature: (f, l) => {
       const p = f?.properties ?? {};
@@ -525,11 +804,15 @@ async function loadEffectLayer() {
   if (!effectCfg?.url) return null;
   const res = await fetch(effectCfg.url, { cache: "no-store" });
   if (!res.ok) throw new Error(`Overlay fetch failed: ${res.status} ${res.statusText}`);
-  const gj = await res.json();
+  return await res.json();
+}
+
+function buildEffectLayer(gj) {
   if (!gj?.features?.length) {
     setStatus("DC effect overlay loaded (0 features). Run analysis export to populate it.");
   }
   const layer = L.geoJSON(gj, {
+    filter: (f) => featurePassesFilters(f?.properties ?? {}, { requireBuffer: true }),
     style: effectStyle,
     onEachFeature: (f, l) => {
       const p = f?.properties ?? {};
@@ -610,17 +893,21 @@ async function syncRiskOverlay() {
     return;
   }
   if (!riskCfg?.url) return;
-  if (!riskLayer) {
+  if (!riskData) {
     try {
       setStatus("Loading AOI risk overlay…");
-      riskLayer = await loadRiskLayer();
+      riskData = await fetchRiskData();
+      rebuildFilterControls();
     } catch (e) {
       console.warn("Risk overlay load failed", e);
       setStatus("AOI risk overlay not found (run analysis to generate GeoJSON).");
       return;
     }
   }
+  if (riskLayer) map.removeLayer(riskLayer);
+  riskLayer = buildRiskLayer(riskData);
   riskLayer.addTo(map);
+  updateInsightPanel();
 }
 
 els.overlayRisk?.addEventListener("change", () => {
@@ -634,17 +921,21 @@ async function syncDcOverlay() {
     return;
   }
   if (!dcCfg?.url) return;
-  if (!dcLayer) {
+  if (!dcData) {
     try {
       setStatus("Loading data center points…");
-      dcLayer = await loadDataCentersLayer();
+      dcData = await loadDataCentersLayer();
+      rebuildFilterControls();
     } catch (e) {
       console.warn("Data center overlay load failed", e);
       setStatus("Data center overlay not found.");
       return;
     }
   }
+  if (dcLayer) map.removeLayer(dcLayer);
+  dcLayer = buildDataCentersLayer(dcData);
   dcLayer.addTo(map);
+  updateInsightPanel();
 }
 
 els.overlayDC?.addEventListener("change", () => {
@@ -658,17 +949,21 @@ async function syncEffectOverlay() {
     return;
   }
   if (!effectCfg?.url) return;
-  if (!effectLayer) {
+  if (!effectData) {
     try {
       setStatus("Loading DC effect overlay…");
-      effectLayer = await loadEffectLayer();
+      effectData = await loadEffectLayer();
+      rebuildFilterControls();
     } catch (e) {
       console.warn("Effect overlay load failed", e);
       setStatus("DC effect overlay not found (run analysis export).");
       return;
     }
   }
+  if (effectLayer) map.removeLayer(effectLayer);
+  effectLayer = buildEffectLayer(effectData);
   effectLayer.addTo(map);
+  updateInsightPanel();
 }
 
 els.overlayEffect?.addEventListener("change", () => {
@@ -769,8 +1064,48 @@ els.play?.addEventListener("click", () => {
   else start();
 });
 
+async function applySiteAndBufferFilters() {
+  const nextSite = els.siteFilter?.value ?? "all";
+  const nextBuffer = els.bufferFilter?.value ?? "all";
+  siteFilterValue = nextSite;
+  bufferFilterValue = nextBuffer;
+  await Promise.all([syncRiskOverlay(), syncDcOverlay(), syncEffectOverlay()]);
+}
+
+els.siteFilter?.addEventListener("change", () => {
+  applySiteAndBufferFilters().catch((e) => {
+    console.warn("Site filter sync failed", e);
+  });
+});
+
+els.bufferFilter?.addEventListener("change", () => {
+  applySiteAndBufferFilters().catch((e) => {
+    console.warn("Buffer filter sync failed", e);
+  });
+});
+
+els.exportGeojson?.addEventListener("click", () => {
+  const ctx = currentExportContext();
+  const fc = {
+    type: "FeatureCollection",
+    features: ctx.features,
+  };
+  triggerDownload(
+    `${ctx.name}.geojson`,
+    `${JSON.stringify(fc, null, 2)}\n`,
+    "application/geo+json;charset=utf-8"
+  );
+});
+
+els.exportCsv?.addEventListener("click", () => {
+  const ctx = currentExportContext();
+  triggerDownload(`${ctx.name}.csv`, toCsv(ctx.features), "text/csv;charset=utf-8");
+});
+
 // Init
 setHelpPanelOpen(true);
+setEngPanelOpen(false);
+updateEngineeringPanel();
 updateTime(current, { keepPlaying: false });
 syncRiskOverlay();
 syncDcOverlay();

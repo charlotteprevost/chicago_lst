@@ -1,0 +1,18 @@
+/**
+ * Shared design tokens (portfolio-aligned chrome for map apps).
+ * Use for panels, loading overlays, controls — not for raster/tile colors.
+ */
+:root {
+  --geo-app-bg: #0b0f14;
+  --geo-panel-bg: rgba(11, 16, 32, 0.92);
+  --geo-panel-border: rgba(255, 255, 255, 0.14);
+  --geo-text: rgba(255, 255, 255, 0.92);
+  --geo-muted: rgba(255, 255, 255, 0.72);
+  --geo-accent: #57d9a3;
+  --geo-accent-dim: rgba(87, 217, 163, 0.18);
+  --geo-accent-bright: #6ee7ff;
+  --geo-radius: 14px;
+  --geo-radius-sm: 10px;
+  --geo-font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --geo-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}

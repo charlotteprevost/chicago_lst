@@ -12,6 +12,7 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
+    <link rel="stylesheet" href="css/tokens.css" />
     <link rel="stylesheet" href="css/style.css" />
   </head>
   <body>
@@ -25,9 +26,40 @@
         <button id="toggleHelp" class="help-btn" type="button" aria-expanded="false">
           How this works
         </button>
+        <button id="toggleEng" class="help-btn" type="button" aria-expanded="false">
+          Engineering
+        </button>
+        <label class="control">
+          <span>Date (UTC)</span>
+          <input id="date" type="date" />
+        </label>
+        <label id="timeWrap" class="control">
+          <span>Time (UTC)</span>
+          <input id="time" type="time" step="600" />
+        </label>
+        <div class="control control--inline">
+          <span>Timeline</span>
+          <div class="inline-buttons">
+            <button id="prev" type="button">Prev</button>
+            <button id="play" type="button">Play</button>
+            <button id="next" type="button">Next</button>
+          </div>
+        </div>
         <label class="control">
           <span>Dataset</span>
           <select id="dataset"></select>
+        </label>
+        <label class="control">
+          <span>AOI / Site</span>
+          <select id="siteFilter">
+            <option value="all">All sites</option>
+          </select>
+        </label>
+        <label class="control">
+          <span>Buffer</span>
+          <select id="bufferFilter">
+            <option value="all">All buffers</option>
+          </select>
         </label>
         <label class="control control--inline">
           <span>Overlays</span>
@@ -98,7 +130,55 @@
           </li>
         </ol>
       </aside>
-      <div id="map" class="map"></div>
+      <aside id="insightPanel" class="insight-panel">
+        <h3>Quick insight</h3>
+        <div class="insight-grid">
+          <div class="insight-card">
+            <div class="insight-label">Visible AOIs</div>
+            <div id="metricVisibleAoIs" class="insight-value">n/a</div>
+          </div>
+          <div class="insight-card">
+            <div class="insight-label">Mean DC Δ (°C)</div>
+            <div id="metricMeanDelta" class="insight-value">n/a</div>
+          </div>
+          <div class="insight-card">
+            <div class="insight-label">Max risk score</div>
+            <div id="metricMaxRisk" class="insight-value">n/a</div>
+          </div>
+        </div>
+        <div class="insight-actions">
+          <button id="exportCsv" type="button">Export CSV</button>
+          <button id="exportGeojson" type="button">Export GeoJSON</button>
+        </div>
+      </aside>
+      <aside id="engPanel" class="eng-panel" hidden>
+        <h3>Engineering notes</h3>
+        <pre class="eng-diagram">Frontend (Pages) -> GeoJSON data + TiTiler (Render) -> COG
+analysis/*.py -----> data/*.geojson + metadata JSON</pre>
+        <div class="eng-row"><b>Data refresh:</b> <span id="engRefreshTs">n/a</span></div>
+        <div class="eng-row">
+          <b>QA/QC:</b> Kelvin->Celsius conversion, clear-sky and non-water masking, QC class filtering.
+        </div>
+        <div class="eng-links">
+          <a id="engApiHealth" href="#" target="_blank" rel="noopener noreferrer">API health</a>
+          <a id="engTestsLink" href="https://github.com/charlotteprevost/chicago_lst/actions" target="_blank" rel="noopener noreferrer">Tests / CI</a>
+          <a href="https://github.com/charlotteprevost/chicago_lst" target="_blank" rel="noopener noreferrer">GitHub repo</a>
+        </div>
+      </aside>
+      <div
+        id="map-shell"
+        class="map-shell map-shell--loading"
+        aria-busy="true"
+        aria-label="Map panel"
+      >
+        <div id="map" class="map" role="application" aria-label="Interactive map"></div>
+        <div id="map-loading" class="map-loading" role="status" aria-live="polite" aria-hidden="false">
+          <div class="map-loading-card">
+            <span class="map-loading-dot" aria-hidden="true"></span>
+            <span class="map-loading-text">Loading thermal basemap and overlays…</span>
+          </div>
+        </div>
+      </div>
     </main>
 
     <script

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-label="Chicago LST layers and delta placeholder">
+  <rect width="1280" height="720" fill="#0f172a"/>
+  <rect x="40" y="40" width="1200" height="640" rx="12" fill="#111827" stroke="#334155"/>
+  <text x="80" y="110" fill="#f1f5f9" font-family="Arial, sans-serif" font-size="34" font-weight="700">Chicago LST  layers &amp; delta</text>
+  <text x="80" y="165" fill="#38bdf8" font-family="Arial, sans-serif" font-size="22">Replace with a real screenshot: legend + DC delta overlay</text>
+  <rect x="80" y="200" width="1120" height="440" rx="8" fill="#1e293b" stroke="#475569"/>
+  <text x="640" y="430" text-anchor="middle" fill="#94a3b8" font-family="Arial, sans-serif" font-size="26">Placeholder  capture from GitHub Pages or local</text>
+</svg>
