@@ -2,6 +2,10 @@
 .DS_Store
 .idea/
 .vscode/
+.cursor/
+.cursorignore
+agent_digest/
+agent-transcripts/
 
 # --- Python ---
 __pycache__/
