@@ -1,25 +1,53 @@
 html, body {
   height: 100%;
   margin: 0;
+  overflow: hidden;
   font-family: var(--geo-font);
 }
 
-.topbar {
+body {
   display: flex;
+  flex-direction: column;
+  background: var(--geo-app-bg);
+  color: var(--geo-text);
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.topbar {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  gap: 10px 16px;
   padding: 10px 12px;
   background: var(--geo-app-bg);
   color: var(--geo-text);
   border-bottom: 1px solid var(--geo-panel-border);
-  flex-wrap: wrap;
 }
 
 .title { font-weight: 700; }
 .subtitle { opacity: 0.85; font-size: 12px; margin-top: 2px; }
 
-.topbar__right {
+.topbar__primary,
+.topbar__secondary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.topbar__primary {
+  flex: 1 1 auto;
+}
+
+.topbar__secondary {
+  flex: 1 1 100%;
+}
+
+#timeControls {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -115,11 +143,11 @@ button:hover { background: rgba(255, 255, 255, 0.14); }
 .info-tip::after {
   content: attr(data-tip);
   position: absolute;
-  left: calc(100% + 8px);
-  top: 50%;
-  transform: translateY(-50%);
+  left: 50%;
+  top: calc(100% + 8px);
+  transform: translateX(-50%);
   min-width: 220px;
-  max-width: 300px;
+  max-width: min(300px, calc(100vw - 24px));
   padding: 8px 10px;
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.22);
@@ -132,6 +160,12 @@ button:hover { background: rgba(255, 255, 255, 0.14); }
   pointer-events: none;
   transition: opacity 0.12s ease;
   z-index: 1200;
+}
+
+.check:last-child .info-tip::after {
+  left: auto;
+  right: 0;
+  transform: none;
 }
 
 .info-tip:hover::after,
@@ -155,7 +189,7 @@ button:hover { background: rgba(255, 255, 255, 0.14); }
 
 .layout {
   position: relative;
-  height: calc(100% - 58px);
+  flex: 1 1 auto;
   min-height: 0;
 }
 
@@ -258,6 +292,8 @@ button:hover { background: rgba(255, 255, 255, 0.14); }
   right: 10px;
   z-index: 1001;
   width: min(300px, calc(100vw - 24px));
+  max-height: calc(100% - 20px);
+  overflow: auto;
   background: var(--geo-panel-bg);
   color: var(--geo-text);
   border: 1px solid var(--geo-panel-border);
@@ -308,6 +344,8 @@ button:hover { background: rgba(255, 255, 255, 0.14); }
   z-index: 1001;
   width: min(360px, calc(100vw - 24px));
   max-width: calc(100vw - 24px);
+  max-height: min(40vh, calc(100% - 20px));
+  overflow: auto;
   background: var(--geo-panel-bg);
   color: var(--geo-text);
   border: 1px solid var(--geo-panel-border);
@@ -368,11 +406,20 @@ button:hover { background: rgba(255, 255, 255, 0.14); }
     left: 10px;
     width: auto;
     max-height: 40vh;
-    overflow: auto;
   }
 
   .help-panel {
     max-height: 50vh;
   }
-}
 
+  .eng-panel {
+    left: 10px;
+    right: 10px;
+    width: auto;
+    max-height: 40vh;
+  }
+
+  body.eng-open .insight-panel {
+    display: none;
+  }
+}

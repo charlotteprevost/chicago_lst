@@ -263,6 +263,25 @@ Requirements for self-hosted COG URL:
 - server must support byte-range requests (`Accept-Ranges: bytes`)
 - CORS should allow `https://charlotteprevost.github.io`
 
+### 2.7) Bake static XYZ tiles (optional, faster map)
+
+On-demand TiTiler from a Render free instance is slow. For the current snapshot, bake WebMercatorQuad PNGs (EPSG:3857) and point `tiles_url` at them:
+
+```bash
+python 26_bake_ecostress_xyz.py \
+  --cog outputs_ecostress_il_qc/ecostress_il_lst_70m_latest.cog.tif \
+  --out-dir ../data/tiles/ecostress \
+  --min-zoom 6 \
+  --max-zoom 10 \
+  --public-tiles-url "../data/tiles/ecostress/{z}/{x}/{y}.png" \
+  --scene-time 2025-07-31T18:05:13Z
+# --cog: local COG or /vsicurl/<https URL>
+# --out-dir: XYZ root; tiles are gitignored
+# --public-tiles-url: template written into ../data/ecostress_highres_latest.json
+```
+
+GitHub Pages runs this at z6–z10 on deploy. The frontend uses `tiles_url` when a probe tile succeeds, otherwise TiTiler.
+
 ### Data center opening dates (verified-only workflow)
 
 To add go-live dates and citation URLs to `../data/chicago_data_centers_183.csv`:

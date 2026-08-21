@@ -2,6 +2,9 @@
   "note": "Updated by analysis/24_make_ecostress_cog.py",
   "cog_url": "https://pub-35e731c3513942bd8c03f959efee69d1.r2.dev/ecostress_il_lst_70m_latest.cog.tif",
   "tms": "WebMercatorQuad",
+  "scene_time": "2025-07-31T18:05:13Z",
+  "minzoom": 6,
+  "maxzoom": 12,
   "render": {
     "colormap_name": "inferno",
     "rescale": "0,45",

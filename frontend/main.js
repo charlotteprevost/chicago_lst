@@ -124,8 +124,8 @@ class GibsTimeLayer extends L.TileLayer {
   }
 }
 
-async function fetchJson(url) {
-  const res = await fetch(url, { cache: "no-store" });
+async function fetchJson(url, { cache = "default" } = {}) {
+  const res = await fetch(url, { cache });
   if (!res.ok) throw new Error(`Fetch failed: ${res.status} ${res.statusText}`);
   return await res.json();
 }
@@ -150,11 +150,74 @@ async function buildTitilerTileUrlTemplate({ titilerBaseUrl, cogUrl, tms, render
   return { template: tpl, minzoom: tj.minzoom, maxzoom: tj.maxzoom, bounds: tj.bounds };
 }
 
+const THERMAL_TILE_OPTS = {
+  opacity: 0.85,
+  updateWhenIdle: true,
+  keepBuffer: 2,
+  crossOrigin: true,
+};
+
+let snapshotTime = null;
+
+function isStaticThermalDataset(ds) {
+  return ds?.cadence === "static" || ds?.type === "titiler_cog";
+}
+
+function snapshotStatusText(ds) {
+  const when = snapshotTime ? ` • ${snapshotTime}` : "";
+  return `ECOSTRESS snapshot${when}${ds?.label ? ` • ${ds.label}` : ""}`;
+}
+
+function chicagoTileForZoom(z) {
+  const lon = -87.6298;
+  const lat = 41.8781;
+  const n = 2 ** z;
+  const x = Math.floor(((lon + 180) / 360) * n);
+  const latRad = (lat * Math.PI) / 180;
+  const y = Math.floor(
+    ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n
+  );
+  return { z, x, y };
+}
+
+async function probeXyzTemplate(template) {
+  const { z, x, y } = chicagoTileForZoom(9);
+  const url = template
+    .replace("{z}", String(z))
+    .replace("{x}", String(x))
+    .replace("{y}", String(y));
+  try {
+    const res = await fetch(url, { method: "GET", cache: "default" });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+function wakeTitiler() {
+  const base = config.titilerBaseUrl?.trim();
+  if (!base) return;
+  fetch(joinUrl(base, "/"), { mode: "no-cors", cache: "no-store" }).catch(() => {});
+}
+
 async function makeTitilerLayer(ds) {
   const meta = await fetchJson(ds.cogMetaUrl);
+  snapshotTime = meta?.scene_time || meta?.acquired || snapshotTime;
   const cogUrl = meta?.cog_url;
   const tms = meta?.tms ?? "WebMercatorQuad";
   const render = meta?.render ?? {};
+  const tilesUrl = String(meta?.tiles_url || "").trim();
+  if (tilesUrl.includes("{z}") && tilesUrl.includes("{x}") && tilesUrl.includes("{y}")) {
+    const xyzReady = await probeXyzTemplate(tilesUrl);
+    if (xyzReady) {
+      return L.tileLayer(tilesUrl, {
+        ...THERMAL_TILE_OPTS,
+        maxZoom: typeof meta.maxzoom === "number" ? meta.maxzoom : 12,
+        minZoom: typeof meta.minzoom === "number" ? meta.minzoom : 6,
+        attribution: "ECOSTRESS LST (static tiles)",
+      });
+    }
+  }
   if (!cogUrl) throw new Error("Missing cog_url in data/ecostress_highres_latest.json");
   if (String(cogUrl).includes("example.com")) {
     throw new Error("COG URL is still a placeholder. Set a real public COG in data/ecostress_highres_latest.json.");
@@ -168,11 +231,10 @@ async function makeTitilerLayer(ds) {
   });
 
   return L.tileLayer(template, {
+    ...THERMAL_TILE_OPTS,
     maxZoom: typeof maxzoom === "number" ? maxzoom : 17,
-    opacity: 0.85,
     attribution:
       'Tiles: <a href="https://developmentseed.org/titiler/" target="_blank" rel="noopener noreferrer">TiTiler</a>',
-    crossOrigin: true,
   });
 }
 
@@ -192,6 +254,7 @@ const els = {
   date: document.getElementById("date"),
   time: document.getElementById("time"),
   timeWrap: document.getElementById("timeWrap"),
+  timeControls: document.getElementById("timeControls"),
   prev: document.getElementById("prev"),
   next: document.getElementById("next"),
   play: document.getElementById("play"),
@@ -206,7 +269,7 @@ const els = {
 function setStatus(msg) {
   if (!els.status) return;
   els.status.textContent = msg || "";
-  els.status.classList.toggle("status--loading", /loading/i.test(msg || ""));
+  els.status.classList.toggle("status--loading", /(loading|rendering)/i.test(msg || ""));
 }
 
 function setHelpPanelOpen(open) {
@@ -214,12 +277,23 @@ function setHelpPanelOpen(open) {
   els.helpPanel.hidden = !open;
   els.toggleHelp.setAttribute("aria-expanded", open ? "true" : "false");
   els.toggleHelp.textContent = open ? "Hide guide" : "How this works";
+  if (open && els.engPanel && !els.engPanel.hidden) {
+    els.engPanel.hidden = true;
+    els.toggleEng?.setAttribute("aria-expanded", "false");
+    document.body.classList.remove("eng-open");
+  }
 }
 
 function setEngPanelOpen(open) {
   if (!els.engPanel || !els.toggleEng) return;
   els.engPanel.hidden = !open;
   els.toggleEng.setAttribute("aria-expanded", open ? "true" : "false");
+  document.body.classList.toggle("eng-open", open);
+  if (open && els.helpPanel && !els.helpPanel.hidden) {
+    els.helpPanel.hidden = true;
+    els.toggleHelp?.setAttribute("aria-expanded", "false");
+    if (els.toggleHelp) els.toggleHelp.textContent = "How this works";
+  }
 }
 
 els.toggleHelp?.addEventListener("click", () => {
@@ -265,8 +339,9 @@ function currentDefaultTimeForDataset(ds) {
 }
 
 function syncControlsFromCurrent(ds, current) {
-  // High-res TiTiler layer is effectively "static" until we wire scene selection.
-  if (ds.cadence === "static" || ds.type === "titiler_cog") {
+  const staticLayer = isStaticThermalDataset(ds);
+  if (els.timeControls) els.timeControls.hidden = staticLayer;
+  if (staticLayer) {
     if (els.timeWrap) els.timeWrap.hidden = true;
     if (els.date) els.date.disabled = true;
     if (els.time) els.time.disabled = true;
@@ -276,6 +351,7 @@ function syncControlsFromCurrent(ds, current) {
     return;
   }
 
+  if (els.timeControls) els.timeControls.hidden = false;
   if (els.date) els.date.disabled = false;
   if (els.time) els.time.disabled = false;
   if (els.prev) els.prev.disabled = false;
@@ -339,9 +415,41 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
 const ds0 = getDataset();
 map.setView(ds0.defaultView.center, ds0.defaultView.zoom);
 syncControlsFromCurrent(ds0, current);
+window.setTimeout(() => map.invalidateSize(), 0);
+window.addEventListener("resize", () => map.invalidateSize());
 
 let baseLayer = null;
 let baseLayerLoadTimer = null;
+
+function attachThermalLoadHandlers(layer, { doneMsg }) {
+  let settled = false;
+  let tileErrors = 0;
+  const finish = (statusMsg) => {
+    if (settled) return;
+    settled = true;
+    if (baseLayerLoadTimer) {
+      window.clearTimeout(baseLayerLoadTimer);
+      baseLayerLoadTimer = null;
+    }
+    setMapLoading(false);
+    setStatus(statusMsg);
+  };
+  layer.on("tileerror", (e) => {
+    tileErrors += 1;
+    console.warn("tileerror", { coords: e?.coords ?? null, url: e?.tile?.src ?? null });
+  });
+  layer.once("load", () => {
+    if (tileErrors) {
+      finish("Temperature tiles loaded; some tiles are missing (coverage or server).");
+      return;
+    }
+    finish(doneMsg);
+  });
+  baseLayerLoadTimer = window.setTimeout(() => {
+    if (settled) return;
+    setStatus("Still rendering temperature tiles…");
+  }, 15000);
+}
 
 async function setBaseLayerForDataset(ds) {
   setMapLoading(true);
@@ -352,22 +460,10 @@ async function setBaseLayerForDataset(ds) {
   try {
     if (baseLayer) map.removeLayer(baseLayer);
     if (ds.type === "titiler_cog") {
-      setStatus("Loading ECOSTRESS high‑res tiles…");
+      setStatus("Rendering ECOSTRESS tiles…");
       baseLayer = await makeTitilerLayer(ds);
       baseLayer.addTo(map);
-      let settled = false;
-      const finish = () => {
-        if (settled) return;
-        settled = true;
-        if (baseLayerLoadTimer) {
-          window.clearTimeout(baseLayerLoadTimer);
-          baseLayerLoadTimer = null;
-        }
-        setMapLoading(false);
-        setStatus("ECOSTRESS high‑res tiles loaded.");
-      };
-      baseLayerLoadTimer = window.setTimeout(finish, 15000);
-      baseLayer.once("load", finish);
+      attachThermalLoadHandlers(baseLayer, { doneMsg: snapshotStatusText(ds) });
       return;
     }
 
@@ -379,26 +475,18 @@ async function setBaseLayerForDataset(ds) {
       time: isoTimeForDataset(ds, current),
       maxZoom: ds.maxZoom ?? 7,
       service: ds.service ?? "best",
+      updateWhenIdle: true,
+      keepBuffer: 2,
     });
     baseLayer.addTo(map);
-    baseLayer.on("tileerror", (e) => {
-      console.warn("GIBS tileerror", { coords: e?.coords ?? null, url: e?.tile?.src ?? null });
+    attachThermalLoadHandlers(baseLayer, {
+      doneMsg: `Layer: ${ds.layer} • Time: ${isoTimeForDataset(ds, current)}`,
     });
-    let settled = false;
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      if (baseLayerLoadTimer) {
-        window.clearTimeout(baseLayerLoadTimer);
-        baseLayerLoadTimer = null;
-      }
-      setMapLoading(false);
+    baseLayer.once("load", () => {
       if (typeof updateTime === "function") {
         updateTime(current, { keepPlaying: true });
       }
-    };
-    baseLayerLoadTimer = window.setTimeout(finish, 15000);
-    baseLayer.once("load", finish);
+    });
   } catch (e) {
     setMapLoading(false);
     throw e;
@@ -418,6 +506,8 @@ async function switchToFallback(reason) {
   await setBaseLayerForDataset(fallback);
   setStatus(`${reason} Falling back to ${fallback.label}.`);
 }
+
+wakeTitiler();
 
 // init base layer
 setBaseLayerForDataset(ds0).catch((e) => {
@@ -587,6 +677,11 @@ function updateEngineeringPanel() {
   }
   if (!els.engRefreshTs) return;
 
+  if (snapshotTime) {
+    els.engRefreshTs.textContent = snapshotTime;
+    return;
+  }
+
   const candidates = [];
   for (const f of riskData?.features ?? []) {
     const dt = f?.properties?.date;
@@ -655,10 +750,10 @@ function riskStyle(feature) {
 
 async function fetchRiskData() {
   if (!riskCfg?.url) return null;
-  let res = await fetch(riskCfg.url, { cache: "no-store" });
+  let res = await fetch(riskCfg.url);
   // If latest isn't present (common when outputs are gitignored), fall back to a sample file.
   if (!res.ok && String(riskCfg.url).includes("aoi_risk_latest.geojson")) {
-    res = await fetch("../data/aoi_risk_sample.geojson", { cache: "no-store" });
+    res = await fetch("../data/aoi_risk_sample.geojson");
   }
   if (!res.ok) throw new Error(`Overlay fetch failed: ${res.status} ${res.statusText}`);
   const gj = await res.json();
@@ -746,7 +841,7 @@ function dcPointStyle() {
 
 async function loadDataCentersLayer() {
   if (!dcCfg?.url) return null;
-  const res = await fetch(dcCfg.url, { cache: "no-store" });
+  const res = await fetch(dcCfg.url);
   if (!res.ok) throw new Error(`Overlay fetch failed: ${res.status} ${res.statusText}`);
   return await res.json();
 }
@@ -802,7 +897,7 @@ function effectStyle(feature) {
 
 async function loadEffectLayer() {
   if (!effectCfg?.url) return null;
-  const res = await fetch(effectCfg.url, { cache: "no-store" });
+  const res = await fetch(effectCfg.url);
   if (!res.ok) throw new Error(`Overlay fetch failed: ${res.status} ${res.statusText}`);
   return await res.json();
 }
@@ -980,8 +1075,12 @@ function stop() {
 function updateTime(dateObj, { keepPlaying = true } = {}) {
   current = dateObj;
   const ds = getDataset();
-  const iso = isoTimeForDataset(ds, current);
   syncControlsFromCurrent(ds, current);
+  if (isStaticThermalDataset(ds)) {
+    if (!keepPlaying) stop();
+    return;
+  }
+  const iso = isoTimeForDataset(ds, current);
   if (baseLayer instanceof GibsTimeLayer) {
     baseLayer.setTime(iso);
     setStatus(`Layer: ${ds.layer} • Time: ${iso}`);
@@ -1103,11 +1202,11 @@ els.exportCsv?.addEventListener("click", () => {
 });
 
 // Init
-setHelpPanelOpen(true);
+setHelpPanelOpen(false);
 setEngPanelOpen(false);
 updateEngineeringPanel();
-updateTime(current, { keepPlaying: false });
-syncRiskOverlay();
+syncControlsFromCurrent(ds0, current);
 syncDcOverlay();
+syncRiskOverlay();
 syncEffectOverlay();
 

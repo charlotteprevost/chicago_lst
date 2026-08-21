@@ -32,7 +32,7 @@ export default {
         // Loads a JSON containing a COG URL; see data/ecostress_highres_latest.json
         cogMetaUrl: "../data/ecostress_highres_latest.json",
         // Chicago (initial view)
-        defaultView: { center: [41.8781, -87.6298], zoom: 10 },
+        defaultView: { center: [41.8781, -87.6298], zoom: 9 },
       },
     },
 

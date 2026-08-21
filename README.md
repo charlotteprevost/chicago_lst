@@ -2,7 +2,9 @@
 
 Interactive map and analysis project about nighttime surface heat and Chicago-area data centers.
 
-**Live app:** `https://charlotteprevost.github.io/chicago_lst/`
+**Live app:** `https://charlotteprevost.github.io/chicago_lst/frontend/`
+
+The temperature layer is a **July 2025 ECOSTRESS snapshot**, not a live feed. Date/time controls appear only if you switch to the global VIIRS night layer.
 
 ## Portfolio quick view
 
@@ -18,7 +20,7 @@ The files above are **SVG placeholders** (versioned, lightweight). Replace them 
 1. **Serve the frontend:** From `frontend/`, run `python -m http.server 8080` (or any static server on a free port).
 2. **Open the app:** Visit `http://localhost:8080` in a browser.
 3. **Configure tiles (optional):** For high-res ECOSTRESS via TiTiler, set `titilerBaseUrl` in `frontend/config.js` to your deployed Render URL (see **Render (TiTiler) publish** below).
-4. **Walk the story:** Turn on AOI risk, data center locations, and the DC-vs-control delta layer; pan/zoom over Chicago and read values against the legend to see how buffers compare to matched controls.
+4. **Walk the story:** Data-center points are on by default. Turn on AOI risk and DC Δ vs controls, then pan/zoom over Chicago and read values against the legend.
 
 ---
 
@@ -32,7 +34,7 @@ This app helps answer a practical question:
 
 It combines satellite-derived thermal data with mapped data center locations and shows three overlays:
 
-- **Are of interest (AOI) risk**: a simple heat-risk score for each mapped area.
+- **Area of interest (AOI) risk**: a simple heat-risk score for each mapped area.
 - **Data centers**: known data center locations used in the analysis.
 - **Data Center delta vs controls**: how much warmer/cooler each data-center buffer is compared with matched non-data-center control buffers at the same timestamps.
 
@@ -104,7 +106,8 @@ python 06_export_dc_effect_geojson.py \
 1. Set repository Pages source to **GitHub Actions**.
 2. Push to `main`.
 3. Workflow `.github/workflows/pages.yml` publishes `frontend/` and `data/`.
-4. Public URL: `https://charlotteprevost.github.io/chicago_lst/`
+4. Public URL: `https://charlotteprevost.github.io/chicago_lst/frontend/`
+   The Pages workflow also bakes a static XYZ PNG pyramid (z6–z10) from the public COG when GDAL/rasterio is available, so first paint does not wait on Render.
 
 ### Render (TiTiler) publish
 
@@ -119,8 +122,23 @@ To use high-resolution ECOSTRESS LST in the app:
 
 1. Build a COG from raster(s) in `analysis/` (`24_make_ecostress_cog.py` or `25_publish_latest_ecostress_cog.py`).
 2. Host COG at a public URL that supports byte-range requests.
-3. Update `data/ecostress_highres_latest.json` with that COG URL.
-4. App requests tiles from TiTiler (`/cog/...`), with fallback to NASA GIBS.
+3. Update `data/ecostress_highres_latest.json` with that COG URL and optional `scene_time`.
+4. Prefer a static XYZ pyramid (`26_bake_ecostress_xyz.py`) so the map does not wait on TiTiler. GitHub Pages bakes z6–z10 on deploy. Locally:
+
+```bash
+python 26_bake_ecostress_xyz.py \
+  --cog /vsicurl/https://pub-35e731c3513942bd8c03f959efee69d1.r2.dev/ecostress_il_lst_70m_latest.cog.tif \
+  --out-dir ../data/tiles/ecostress \
+  --min-zoom 6 \
+  --max-zoom 10 \
+  --public-tiles-url "../data/tiles/ecostress/{z}/{x}/{y}.png" \
+  --scene-time 2025-07-31T18:05:13Z
+# --cog: local path or /vsicurl/<https COG>
+# --out-dir: XYZ root {z}/{x}/{y}.png (WebMercatorQuad, EPSG:3857)
+# --public-tiles-url: template written into data/ecostress_highres_latest.json
+```
+
+5. If `tiles_url` is missing or the probe tile 404s, the app falls back to TiTiler (`/cog/...`), then NASA GIBS.
 
 ---
 

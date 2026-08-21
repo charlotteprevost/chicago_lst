@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Live Night Heat</title>
+    <title>Illinois night heat</title>
 
     <!-- Use CDN so the app works when served from this folder -->
     <link
@@ -18,11 +18,11 @@
   <body>
     <header class="topbar">
       <div class="topbar__left">
-        <div class="title">Live Night Heat</div>
-        <div class="subtitle">Illinois ECOSTRESS LST (70m) + data center overlays</div>
+        <div class="title">Illinois night heat</div>
+        <div class="subtitle">ECOSTRESS LST snapshot (70 m) and data-center overlays</div>
       </div>
 
-      <div class="topbar__right">
+      <div class="topbar__primary">
         <button id="toggleHelp" class="help-btn" type="button" aria-expanded="false">
           How this works
         </button>
@@ -30,25 +30,67 @@
           Engineering
         </button>
         <label class="control">
-          <span>Date (UTC)</span>
-          <input id="date" type="date" />
-        </label>
-        <label id="timeWrap" class="control">
-          <span>Time (UTC)</span>
-          <input id="time" type="time" step="600" />
-        </label>
-        <div class="control control--inline">
-          <span>Timeline</span>
-          <div class="inline-buttons">
-            <button id="prev" type="button">Prev</button>
-            <button id="play" type="button">Play</button>
-            <button id="next" type="button">Next</button>
-          </div>
-        </div>
-        <label class="control">
           <span>Dataset</span>
           <select id="dataset"></select>
         </label>
+        <label class="control control--inline">
+          <span>Overlays</span>
+          <label class="check">
+            <input id="overlayRisk" type="checkbox" />
+            <span>AOI risk</span>
+            <span
+              class="info-tip"
+              tabindex="0"
+              aria-label="What is AOI risk?"
+              data-tip="Each buffer gets a 0–100 score from recent heat: anomaly vs a local baseline, how often nights run hot, and the warming trend."
+              >?</span
+            >
+          </label>
+          <label class="check">
+            <input id="overlayDC" type="checkbox" checked />
+            <span>Data centers</span>
+            <span
+              class="info-tip"
+              tabindex="0"
+              aria-label="What are data center points?"
+              data-tip="Known Chicago-area data center sites used in this comparison."
+              >?</span
+            >
+          </label>
+          <label class="check">
+            <input id="overlayEffect" type="checkbox" />
+            <span>DC Δ vs controls</span>
+            <span
+              class="info-tip"
+              tabindex="0"
+              aria-label="What is DC delta versus controls?"
+              data-tip="How much warmer or cooler each data-center buffer is than matched nearby areas at the same times."
+              >?</span
+            >
+          </label>
+        </label>
+        <span id="status" class="status"></span>
+      </div>
+
+      <div class="topbar__secondary">
+        <div id="timeControls" hidden>
+          <label class="control">
+            <span>Date (UTC)</span>
+            <input id="date" type="date" />
+          </label>
+          <label id="timeWrap" class="control">
+            <span>Time (UTC)</span>
+            <input id="time" type="time" step="600" />
+          </label>
+          <div class="control control--inline">
+            <span>Timeline</span>
+            <div class="inline-buttons">
+              <button id="prev" type="button">Prev</button>
+              <button id="play" type="button">Play</button>
+              <button id="next" type="button">Next</button>
+            </div>
+          </div>
+        </div>
         <label class="control">
           <span>AOI / Site</span>
           <select id="siteFilter">
@@ -61,77 +103,41 @@
             <option value="all">All buffers</option>
           </select>
         </label>
-        <label class="control control--inline">
-          <span>Overlays</span>
-          <label class="check">
-            <input id="overlayRisk" type="checkbox" checked />
-            <span>AOI risk</span>
-            <span
-              class="info-tip"
-              tabindex="0"
-              aria-label="What is AOI risk?"
-              data-tip="AOI risk summarizes recent heat behavior in each buffer using anomaly, hot-night frequency, and trend."
-              >?</span
-            >
-          </label>
-          <label class="check">
-            <input id="overlayDC" type="checkbox" checked />
-            <span>Data centers</span>
-            <span
-              class="info-tip"
-              tabindex="0"
-              aria-label="What are data center points?"
-              data-tip="These points are known data center locations from the Chicago list used in this analysis."
-              >?</span
-            >
-          </label>
-          <label class="check">
-            <input id="overlayEffect" type="checkbox" checked />
-            <span>DC Δ vs controls</span>
-            <span
-              class="info-tip"
-              tabindex="0"
-              aria-label="What is DC delta versus controls?"
-              data-tip="DC Δ compares each data-center buffer temperature against matched non-data-center control buffers at the same timestamps."
-              >?</span
-            >
-          </label>
-        </label>
-        <span id="status" class="status"></span>
       </div>
     </header>
 
     <main class="layout">
       <aside id="helpPanel" class="help-panel" hidden>
-        <h3>Step-by-step guide (plain English)</h3>
+        <h3>How this map works</h3>
         <ol>
           <li>
-            <b>Background map (temperature):</b> the app shows satellite-derived night surface temperature over Illinois.
-            High-res ECOSTRESS is used when available; otherwise it falls back to a global thermal proxy.
+            <b>Temperature background:</b> night land-surface temperature from NASA ECOSTRESS
+            (~70 m). If that layer is down, the map falls back to a coarser global night layer.
           </li>
           <li>
-            <b>Data center points:</b> each point is a known data center location from your Chicago list.
+            <b>Data center dots:</b> Chicago-area sites from the project list. Click a dot for name
+            and address.
           </li>
           <li>
-            <b>AOI risk overlay:</b> each polygon buffer has a risk score from recent heat behavior
-            (anomaly, hot-night frequency, and trend).
+            <b>AOI risk:</b> buffer polygons scored from recent heat (anomaly, hot-night count, and
+            trend). Turn the overlay on from the top bar.
           </li>
           <li>
-            <b>DC effect overlay (DC Δ vs controls):</b> compares each data-center buffer temperature
-            against matched non-data-center control buffers at the same timestamps.
+            <b>DC Δ vs controls:</b> each data-center buffer compared with matched nearby areas at
+            the same timestamps. Positive means the site ran warmer.
           </li>
           <li>
-            <b>Before vs after opening:</b> where opening-year metadata exists, popup stats show
-            pre-open and post-open windows to help interpret possible change after go-live.
+            <b>Before vs after opening:</b> where an opening date is known, popups split the record
+            into pre-open and post-open windows.
           </li>
           <li>
-            <b>Why coverage can look one-sided:</b> ECOSTRESS is swath-based. A single scene may only cover
-            part of Illinois; full-state appearance improves when latest same-timestamp tiles are mosaicked.
+            <b>Partial coverage:</b> ECOSTRESS is a swath sensor. One scene often covers only part
+            of Illinois; a hard edge on the temperature layer is expected, not a broken map.
           </li>
         </ol>
       </aside>
       <aside id="insightPanel" class="insight-panel">
-        <h3>Quick insight</h3>
+        <h3>Summary</h3>
         <div class="insight-grid">
           <div class="insight-card">
             <div class="insight-label">Visible AOIs</div>
@@ -157,7 +163,7 @@
 analysis/*.py -----> data/*.geojson + metadata JSON</pre>
         <div class="eng-row"><b>Data refresh:</b> <span id="engRefreshTs">n/a</span></div>
         <div class="eng-row">
-          <b>QA/QC:</b> Kelvin->Celsius conversion, clear-sky and non-water masking, QC class filtering.
+          <b>QA/QC:</b> Kelvin to Celsius, clear-sky and non-water masking, QC class filtering.
         </div>
         <div class="eng-links">
           <a id="engApiHealth" href="#" target="_blank" rel="noopener noreferrer">API health</a>
@@ -175,7 +181,7 @@ analysis/*.py -----> data/*.geojson + metadata JSON</pre>
         <div id="map-loading" class="map-loading" role="status" aria-live="polite" aria-hidden="false">
           <div class="map-loading-card">
             <span class="map-loading-dot" aria-hidden="true"></span>
-            <span class="map-loading-text">Loading thermal basemap and overlays…</span>
+            <span class="map-loading-text">Loading temperature tiles…</span>
           </div>
         </div>
       </div>
@@ -190,4 +196,3 @@ analysis/*.py -----> data/*.geojson + metadata JSON</pre>
     <script type="module" src="main.js"></script>
   </body>
 </html>
-
