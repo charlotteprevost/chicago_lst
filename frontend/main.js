@@ -27,103 +27,6 @@ function fmtMaybeInt(v) {
   return String(Math.round(n));
 }
 
-function formatDateUTC(d) {
-  const yyyy = d.getUTCFullYear();
-  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(d.getUTCDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-function formatTimeHHMMUTC(d) {
-  const hh = String(d.getUTCHours()).padStart(2, "0");
-  const mm = String(d.getUTCMinutes()).padStart(2, "0");
-  return `${hh}:${mm}`;
-}
-
-function formatTimestampUTC(d) {
-  // ISO8601 with Z, to the minute (seconds fixed at 00).
-  return `${formatDateUTC(d)}T${formatTimeHHMMUTC(d)}:00Z`;
-}
-
-function parseDateInput(value) {
-  // HTML date input gives YYYY-MM-DD (local), interpret as UTC day for GIBS.
-  const [y, m, d] = (value || "").split("-").map((v) => Number(v));
-  if (!y || !m || !d) return null;
-  return new Date(Date.UTC(y, m - 1, d, 0, 0, 0));
-}
-
-function parseTimeInput(value) {
-  const [h, m] = (value || "").split(":").map((v) => Number(v));
-  if (Number.isNaN(h) || Number.isNaN(m)) return null;
-  if (h < 0 || h > 23 || m < 0 || m > 59) return null;
-  return { h, m };
-}
-
-function addDaysUTC(date, deltaDays) {
-  const t = Date.UTC(
-    date.getUTCFullYear(),
-    date.getUTCMonth(),
-    date.getUTCDate() + deltaDays,
-    0,
-    0,
-    0
-  );
-  return new Date(t);
-}
-
-function addMinutesUTC(date, deltaMinutes) {
-  return new Date(date.getTime() + deltaMinutes * 60 * 1000);
-}
-
-function floorToStepMinutesUTC(date, stepMinutes) {
-  const stepMs = stepMinutes * 60 * 1000;
-  return new Date(Math.floor(date.getTime() / stepMs) * stepMs);
-}
-
-class GibsTimeLayer extends L.TileLayer {
-  constructor(options) {
-    super(options.urlTemplate, {
-      ...options,
-      attribution:
-        'Imagery: <a href="https://earthdata.nasa.gov/gibs" target="_blank" rel="noopener noreferrer">NASA GIBS</a>',
-      maxZoom: options.maxZoom ?? 7,
-    });
-    this._time = options.time;
-    this._layerId = options.layerId;
-    this._tileMatrixSet = options.tileMatrixSet;
-    this._service = options.service ?? "best";
-  }
-
-  setTime(isoTime) {
-    this._time = isoTime;
-    this.redraw();
-  }
-
-  setDataset({ layerId, tileMatrixSet, maxZoom }) {
-    this._layerId = layerId;
-    this._tileMatrixSet = tileMatrixSet;
-    if (typeof maxZoom === "number") this.options.maxZoom = maxZoom;
-    this.redraw();
-  }
-
-  setService(service) {
-    this._service = service || "best";
-    this.redraw();
-  }
-
-  getTileUrl(coords) {
-    // Leaflet supplies {x,y,z}; GIBS requires {layer,time,tileMatrixSet} too.
-    const url = L.Util.template(this._url, {
-      ...coords,
-      service: this._service,
-      layer: this._layerId,
-      time: this._time,
-      tileMatrixSet: this._tileMatrixSet,
-    });
-    return url;
-  }
-}
-
 async function fetchJson(url, { cache = "default" } = {}) {
   const res = await fetch(url, { cache });
   if (!res.ok) throw new Error(`Fetch failed: ${res.status} ${res.statusText}`);
@@ -158,14 +61,16 @@ const THERMAL_TILE_OPTS = {
 };
 
 let snapshotTime = null;
-
-function isStaticThermalDataset(ds) {
-  return ds?.cadence === "static" || ds?.type === "titiler_cog";
-}
+let snapshotCoverage = null;
 
 function snapshotStatusText(ds) {
   const when = snapshotTime ? ` • ${snapshotTime}` : "";
-  return `ECOSTRESS snapshot${when}${ds?.label ? ` • ${ds.label}` : ""}`;
+  const cov = snapshotCoverage;
+  const covBit =
+    cov && Number.isFinite(cov.n) && Number.isFinite(cov.m)
+      ? ` • this snapshot covers ${cov.n} of ${cov.m} sites`
+      : "";
+  return `ECOSTRESS snapshot${when}${covBit}${ds?.label ? ` • ${ds.label}` : ""}`;
 }
 
 function chicagoTileForZoom(z) {
@@ -203,6 +108,12 @@ function wakeTitiler() {
 async function makeTitilerLayer(ds) {
   const meta = await fetchJson(ds.cogMetaUrl);
   snapshotTime = meta?.scene_time || meta?.acquired || snapshotTime;
+  const cov = meta?.coverage || {};
+  const n = Number(cov.n_dc_with_pixels);
+  const m = Number(cov.n_dc_sites);
+  if (Number.isFinite(n) && Number.isFinite(m) && m > 0) {
+    snapshotCoverage = { n, m };
+  }
   const cogUrl = meta?.cog_url;
   const tms = meta?.tms ?? "WebMercatorQuad";
   const render = meta?.render ?? {};
@@ -213,7 +124,7 @@ async function makeTitilerLayer(ds) {
       return L.tileLayer(tilesUrl, {
         ...THERMAL_TILE_OPTS,
         maxZoom: typeof meta.maxzoom === "number" ? meta.maxzoom : 12,
-        minZoom: typeof meta.minzoom === "number" ? meta.minzoom : 6,
+        minZoom: typeof meta.minzoom === "number" ? meta.minzoom : 9,
         attribution: "ECOSTRESS LST (static tiles)",
       });
     }
@@ -245,19 +156,12 @@ const els = {
   engPanel: document.getElementById("engPanel"),
   engRefreshTs: document.getElementById("engRefreshTs"),
   engApiHealth: document.getElementById("engApiHealth"),
-  dataset: document.getElementById("dataset"),
   overlayRisk: document.getElementById("overlayRisk"),
   overlayDC: document.getElementById("overlayDC"),
   overlayEffect: document.getElementById("overlayEffect"),
   siteFilter: document.getElementById("siteFilter"),
   bufferFilter: document.getElementById("bufferFilter"),
-  date: document.getElementById("date"),
-  time: document.getElementById("time"),
-  timeWrap: document.getElementById("timeWrap"),
-  timeControls: document.getElementById("timeControls"),
-  prev: document.getElementById("prev"),
-  next: document.getElementById("next"),
-  play: document.getElementById("play"),
+  metricCoverage: document.getElementById("metricCoverage"),
   metricVisibleAoIs: document.getElementById("metricVisibleAoIs"),
   metricMeanDelta: document.getElementById("metricMeanDelta"),
   metricMaxRisk: document.getElementById("metricMaxRisk"),
@@ -308,83 +212,12 @@ els.toggleEng?.addEventListener("click", () => {
 
 const datasets = config.gibs.datasets;
 let datasetId = config.gibs.defaultDatasetId;
-const fallbackDatasetId = config.gibs.fallbackDatasetId || "viirs_night_global";
 
 function getDataset() {
   return datasets[datasetId] || datasets[config.gibs.defaultDatasetId];
 }
 
-function setDatasetChoice(nextId) {
-  if (!datasets[nextId]) return false;
-  datasetId = nextId;
-  if (els.dataset) els.dataset.value = nextId;
-  return true;
-}
-
-function isoTimeForDataset(ds, dateObj) {
-  return ds.cadence === "daily" ? formatDateUTC(dateObj) : formatTimestampUTC(dateObj);
-}
-
-function currentDefaultTimeForDataset(ds) {
-  const now = new Date();
-  if (ds.cadence === "daily") {
-    // Default to "yesterday" UTC to avoid partial same-day coverage.
-    return addDaysUTC(
-      new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0)),
-      -1
-    );
-  }
-  // For 10-min cadence, stay a bit behind "now" and snap to the cadence step.
-  return floorToStepMinutesUTC(addMinutesUTC(now, -60), 10);
-}
-
-function syncControlsFromCurrent(ds, current) {
-  const staticLayer = isStaticThermalDataset(ds);
-  if (els.timeControls) els.timeControls.hidden = staticLayer;
-  if (staticLayer) {
-    if (els.timeWrap) els.timeWrap.hidden = true;
-    if (els.date) els.date.disabled = true;
-    if (els.time) els.time.disabled = true;
-    if (els.prev) els.prev.disabled = true;
-    if (els.next) els.next.disabled = true;
-    if (els.play) els.play.disabled = true;
-    return;
-  }
-
-  if (els.timeControls) els.timeControls.hidden = false;
-  if (els.date) els.date.disabled = false;
-  if (els.time) els.time.disabled = false;
-  if (els.prev) els.prev.disabled = false;
-  if (els.next) els.next.disabled = false;
-  if (els.play) els.play.disabled = false;
-  if (els.date) els.date.value = formatDateUTC(current);
-  if (ds.cadence === "daily") {
-    if (els.timeWrap) els.timeWrap.hidden = true;
-  } else {
-    if (els.timeWrap) els.timeWrap.hidden = false;
-    if (els.time) els.time.value = formatTimeHHMMUTC(current);
-  }
-}
-
-function ensureDatasetSelect() {
-  if (!els.dataset) return;
-  els.dataset.innerHTML = "";
-  for (const [id, ds] of Object.entries(datasets)) {
-    const opt = document.createElement("option");
-    opt.value = id;
-    opt.textContent = ds.label;
-    els.dataset.appendChild(opt);
-  }
-  els.dataset.value = datasetId;
-}
-
-ensureDatasetSelect();
-
-let current = currentDefaultTimeForDataset(getDataset());
-let playing = false;
-let timer = null;
-
-const map = L.map("map", { worldCopyJump: true });
+const map = L.map("map", { maxBoundsViscosity: 1.0, minZoom: 9, worldCopyJump: false });
 
 const mapShell = document.getElementById("map-shell");
 const mapLoadingEl = document.getElementById("map-loading");
@@ -396,15 +229,29 @@ function setMapLoading(on) {
   if (mapLoadingEl) mapLoadingEl.setAttribute("aria-hidden", on ? "false" : "true");
 }
 
-// Illinois-only focus (don’t let the map drift to global view).
-const IL_BOUNDS = L.latLngBounds(
-  [36.97, -91.52], // SW
-  [42.51, -87.0] // NE
-);
-map.setMaxBounds(IL_BOUNDS);
-map.on("drag", () => {
-  map.panInsideBounds(IL_BOUNDS, { animate: false });
-});
+function boundsFromAoi(aoi) {
+  if (!aoi || !Number.isFinite(aoi.south)) return null;
+  const raw = L.latLngBounds(
+    [aoi.south, aoi.west],
+    [aoi.north, aoi.east]
+  );
+  return raw.pad(0.08);
+}
+
+async function applyChicagoMapClamp() {
+  let aoi = null;
+  try {
+    aoi = await fetchJson(config.aoiUrl || "../data/chicago_dc_aoi.json");
+  } catch (e) {
+    console.warn("Chicago AOI JSON missing; using default cluster box", e);
+    aoi = { west: -88.38, south: 41.52, east: -87.47, north: 42.43 };
+  }
+  const box = boundsFromAoi(aoi);
+  if (!box) return;
+  map.setMaxBounds(box);
+  map.setMinZoom(9);
+  map.fitBounds(box, { padding: [24, 24], maxZoom: 10 });
+}
 
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 19,
@@ -414,7 +261,7 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
 
 const ds0 = getDataset();
 map.setView(ds0.defaultView.center, ds0.defaultView.zoom);
-syncControlsFromCurrent(ds0, current);
+applyChicagoMapClamp().catch((e) => console.warn("Map clamp failed", e));
 window.setTimeout(() => map.invalidateSize(), 0);
 window.addEventListener("resize", () => map.invalidateSize());
 
@@ -459,52 +306,27 @@ async function setBaseLayerForDataset(ds) {
   }
   try {
     if (baseLayer) map.removeLayer(baseLayer);
-    if (ds.type === "titiler_cog") {
-      setStatus("Rendering ECOSTRESS tiles…");
-      baseLayer = await makeTitilerLayer(ds);
-      baseLayer.addTo(map);
-      attachThermalLoadHandlers(baseLayer, { doneMsg: snapshotStatusText(ds) });
-      return;
-    }
-
-    setStatus("Loading GIBS thermal tiles…");
-    baseLayer = new GibsTimeLayer({
-      urlTemplate: config.gibs.urlTemplate,
-      layerId: ds.layer,
-      tileMatrixSet: ds.tileMatrixSet,
-      time: isoTimeForDataset(ds, current),
-      maxZoom: ds.maxZoom ?? 7,
-      service: ds.service ?? "best",
-      updateWhenIdle: true,
-      keepBuffer: 2,
-    });
+    setStatus("Rendering ECOSTRESS tiles…");
+    baseLayer = await makeTitilerLayer(ds);
     baseLayer.addTo(map);
-    attachThermalLoadHandlers(baseLayer, {
-      doneMsg: `Layer: ${ds.layer} • Time: ${isoTimeForDataset(ds, current)}`,
-    });
-    baseLayer.once("load", () => {
-      if (typeof updateTime === "function") {
-        updateTime(current, { keepPlaying: true });
-      }
-    });
+    attachThermalLoadHandlers(baseLayer, { doneMsg: snapshotStatusText(ds) });
+    updateInsightPanel();
   } catch (e) {
     setMapLoading(false);
     throw e;
   }
 }
 
-async function switchToFallback(reason) {
-  if (!fallbackDatasetId || fallbackDatasetId === datasetId || !datasets[fallbackDatasetId]) {
-    setStatus(reason);
-    return;
+function markThermalUnavailable(reason) {
+  if (baseLayer) {
+    map.removeLayer(baseLayer);
+    baseLayer = null;
   }
-  const fallback = datasets[fallbackDatasetId];
-  setDatasetChoice(fallbackDatasetId);
-  current = currentDefaultTimeForDataset(fallback);
-  syncControlsFromCurrent(fallback, current);
-  map.setView(fallback.defaultView.center, fallback.defaultView.zoom);
-  await setBaseLayerForDataset(fallback);
-  setStatus(`${reason} Falling back to ${fallback.label}.`);
+  setMapLoading(false);
+  const msg = reason
+    ? `${reason} Temperature tiles unavailable.`
+    : "Temperature tiles unavailable.";
+  setStatus(msg);
 }
 
 wakeTitiler();
@@ -512,10 +334,7 @@ wakeTitiler();
 // init base layer
 setBaseLayerForDataset(ds0).catch((e) => {
   console.warn("Base layer init failed", e);
-  switchToFallback(`High-res layer unavailable (${e?.message ?? e}).`).catch((err) => {
-    console.warn("Fallback layer init failed", err);
-    setStatus(String(err?.message ?? err));
-  });
+  markThermalUnavailable(`High-res layer unavailable (${e?.message ?? e}).`);
 });
 
 // --- AOI risk overlay (GeoJSON) ---
@@ -654,6 +473,12 @@ function updateInsightPanel() {
   const effectFeatures = getFilteredFeatures(effectData, { requireBuffer: true });
   const visibleAois = riskFeatures.length;
   setMetric(els.metricVisibleAoIs, String(visibleAois || 0));
+
+  if (snapshotCoverage && Number.isFinite(snapshotCoverage.n) && Number.isFinite(snapshotCoverage.m)) {
+    setMetric(els.metricCoverage, `${snapshotCoverage.n} of ${snapshotCoverage.m} sites`);
+  } else {
+    setMetric(els.metricCoverage, "n/a");
+  }
 
   const deltas = effectFeatures
     .map((f) => Number(f?.properties?.delta_mean_c))
@@ -1065,104 +890,6 @@ els.overlayEffect?.addEventListener("change", () => {
   syncEffectOverlay();
 });
 
-function stop() {
-  playing = false;
-  if (els.play) els.play.textContent = "Play";
-  if (timer) window.clearInterval(timer);
-  timer = null;
-}
-
-function updateTime(dateObj, { keepPlaying = true } = {}) {
-  current = dateObj;
-  const ds = getDataset();
-  syncControlsFromCurrent(ds, current);
-  if (isStaticThermalDataset(ds)) {
-    if (!keepPlaying) stop();
-    return;
-  }
-  const iso = isoTimeForDataset(ds, current);
-  if (baseLayer instanceof GibsTimeLayer) {
-    baseLayer.setTime(iso);
-    setStatus(`Layer: ${ds.layer} • Time: ${iso}`);
-  } else {
-    setStatus(`Layer: ${ds.label}`);
-  }
-  if (!keepPlaying) stop();
-}
-
-els.dataset?.addEventListener("change", () => {
-  datasetId = els.dataset.value;
-  const ds = getDataset();
-  current = currentDefaultTimeForDataset(ds);
-  syncControlsFromCurrent(ds, current);
-  setBaseLayerForDataset(ds).catch((e) => {
-    console.warn("Base layer switch failed", e);
-    if (ds.type === "titiler_cog") {
-      switchToFallback(`High-res layer unavailable (${e?.message ?? e}).`).catch((err) => {
-        console.warn("Fallback layer switch failed", err);
-        setStatus(String(err?.message ?? err));
-      });
-      return;
-    }
-    setStatus(String(e?.message ?? e));
-  });
-  map.setView(ds.defaultView.center, ds.defaultView.zoom);
-  updateTime(current, { keepPlaying: false });
-});
-
-els.date?.addEventListener("change", () => {
-  const d = parseDateInput(els.date.value);
-  if (!d) return;
-  const ds = getDataset();
-  if (ds.cadence === "daily") {
-    updateTime(d, { keepPlaying: false });
-    return;
-  }
-  const t = parseTimeInput(els.time?.value);
-  const merged = new Date(d.getTime());
-  merged.setUTCHours(t?.h ?? current.getUTCHours(), t?.m ?? current.getUTCMinutes(), 0, 0);
-
-  updateTime(floorToStepMinutesUTC(merged, 10), { keepPlaying: false });
-});
-
-els.time?.addEventListener("change", () => {
-  const ds = getDataset();
-  if (ds.cadence === "daily") return;
-  const t = parseTimeInput(els.time.value);
-  if (!t) return;
-  const merged = new Date(current.getTime());
-  merged.setUTCHours(t.h, t.m, 0, 0);
-
-  updateTime(floorToStepMinutesUTC(merged, 10), { keepPlaying: false });
-});
-
-els.prev?.addEventListener("click", () => {
-  const ds = getDataset();
-  if (ds.cadence === "daily") updateTime(addDaysUTC(current, -1));
-  else updateTime(addMinutesUTC(current, -10));
-});
-
-els.next?.addEventListener("click", () => {
-  const ds = getDataset();
-  if (ds.cadence === "daily") updateTime(addDaysUTC(current, 1));
-  else updateTime(addMinutesUTC(current, 10));
-});
-
-function start() {
-  playing = true;
-  if (els.play) els.play.textContent = "Pause";
-  timer = window.setInterval(() => {
-    const ds = getDataset();
-    if (ds.cadence === "daily") updateTime(addDaysUTC(current, 1));
-    else updateTime(addMinutesUTC(current, 10));
-  }, 700);
-}
-
-els.play?.addEventListener("click", () => {
-  if (playing) stop();
-  else start();
-});
-
 async function applySiteAndBufferFilters() {
   const nextSite = els.siteFilter?.value ?? "all";
   const nextBuffer = els.bufferFilter?.value ?? "all";
@@ -1205,7 +932,17 @@ els.exportCsv?.addEventListener("click", () => {
 setHelpPanelOpen(false);
 setEngPanelOpen(false);
 updateEngineeringPanel();
-syncControlsFromCurrent(ds0, current);
+fetchJson(config.coverageUrl || "../data/coverage_latest.json")
+  .then((cov) => {
+    const snap = cov?.snapshot || cov;
+    const n = Number(snap?.n_dc_with_pixels);
+    const m = Number(snap?.n_dc_sites || cov?.n_dc_sites);
+    if (!snapshotCoverage && Number.isFinite(n) && Number.isFinite(m) && m > 0) {
+      snapshotCoverage = { n, m };
+      updateInsightPanel();
+    }
+  })
+  .catch(() => {});
 syncDcOverlay();
 syncRiskOverlay();
 syncEffectOverlay();

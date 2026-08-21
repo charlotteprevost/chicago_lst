@@ -4,7 +4,7 @@ Interactive map and analysis project about nighttime surface heat and Chicago-ar
 
 **Live app:** `https://charlotteprevost.github.io/chicago_lst/frontend/`
 
-The temperature layer is a **July 2025 ECOSTRESS snapshot**, not a live feed. Date/time controls appear only if you switch to the global VIIRS night layer.
+The temperature layer is a **same-pass ECOSTRESS snapshot** (~70 m), mosaicked from one ISS overpass and clipped to the Chicago data-center cluster. It is not a live feed and does not mix nights. A remaining swath edge means that pass missed part of the cluster.
 
 ## Portfolio quick view
 
@@ -76,7 +76,7 @@ source .venv/bin/activate          # activate the environment
 pip install -r requirements.txt    # install analysis dependencies
 ```
 
-Run the Illinois ECOSTRESS study:
+Run the Chicago ECOSTRESS study (fetch bbox defaults to the DC hull + 10 km):
 
 ```bash
 python 23_run_il_ecostress_dc_study.py \
@@ -151,10 +151,8 @@ python 26_bake_ecostress_xyz.py \
 - **ECOSTRESS L2T LST (primary high-resolution thermal source)**
   - Accessed via Earthdata tooling in `analysis/22_fetch_ecostress_l2t_il.py`
   - Typical resolution used in this project: ~70 m LST tiles
-- **NASA GIBS WMTS layers (visual fallback/background)**
-  - Endpoint in `frontend/config.js`:
-  - `https://gibs.earthdata.nasa.gov/wmts/epsg3857/{service}/{layer}/default/{time}/{tileMatrixSet}/{z}/{y}/{x}.png`
-  - Default fallback dataset configured: `VIIRS_SNPP_DayNightBand_ENCC`
+  - Web map: one same-pass mosaic clipped to the Chicago data-center cluster (`analysis/25_publish_latest_ecostress_cog.py`, `data/chicago_dc_aoi.json`)
+- **OpenStreetMap** basemap. If ECOSTRESS tiles fail, the street map stays and the status line reports that temperature tiles are unavailable (no second satellite product).
 
 ### Data center locations
 

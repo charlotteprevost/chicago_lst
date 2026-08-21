@@ -36,19 +36,32 @@ def main() -> None:
     cfg = load_config(args.config)
     out_dir = Path(cfg.outputs_dir)
     ts_enriched = out_dir / "timeseries_enriched.csv"
-    if not ts_enriched.exists():
+    collapsed_usable = out_dir / "collapsed_aoi_dt_usable.csv"
+    if collapsed_usable.exists():
+        src = collapsed_usable
+    elif ts_enriched.exists():
+        src = ts_enriched
+    else:
         raise SystemExit(f"Missing input: {ts_enriched} (run 23_run_il_ecostress_dc_study.py first)")
 
     aois = gpd.read_file(cfg.aoi_path)
     if aois.crs is None:
         aois = aois.set_crs(cfg.aoi_crs_if_missing)
 
-    df = pd.read_csv(ts_enriched)
+    df = pd.read_csv(src)
+    if "is_usable" in df.columns:
+        df = df[df["is_usable"] == True].copy()  # noqa: E712
+    if "count" not in df.columns and "pixels" in df.columns:
+        df["count"] = df["pixels"]
+    if src == collapsed_usable and ts_enriched.exists():
+        extra = pd.read_csv(ts_enriched, usecols=lambda c: c in {"aoi_id", "opening_date", "opening_year"})
+        if "aoi_id" in extra.columns and "opening_date" in extra.columns and "opening_date" not in df.columns:
+            df = df.merge(extra.drop_duplicates("aoi_id"), on="aoi_id", how="left")
     if args.value_col not in df.columns:
-        raise SystemExit(f"Missing column in {ts_enriched.name}: {args.value_col}")
+        raise SystemExit(f"Missing column in {src.name}: {args.value_col}")
     for col in ["aoi_id", "date", "buffer_m", "is_data_center", "count"]:
         if col not in df.columns:
-            raise SystemExit(f"Missing column in {ts_enriched.name}: {col}")
+            raise SystemExit(f"Missing column in {src.name}: {col}")
 
     df["dt"] = pd.to_datetime(df["date"], errors="coerce", utc=True)
     if args.buffer_m is not None:

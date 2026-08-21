@@ -1,13 +1,26 @@
 {
-  "note": "Updated by analysis/24_make_ecostress_cog.py",
+  "note": "Updated by analysis/25_publish_latest_ecostress_cog.py",
   "cog_url": "https://pub-35e731c3513942bd8c03f959efee69d1.r2.dev/ecostress_il_lst_70m_latest.cog.tif",
   "tms": "WebMercatorQuad",
-  "scene_time": "2025-07-31T18:05:13Z",
-  "minzoom": 6,
+  "scene_time": "2025-07-31T18:04:21Z",
+  "minzoom": 9,
   "maxzoom": 12,
   "render": {
     "colormap_name": "inferno",
     "rescale": "0,45",
     "format": "png"
+  },
+  "coverage": {
+    "n_dc_sites": 113,
+    "n_dc_with_pixels": 113,
+    "frac": 1.0,
+    "select": "max_coverage",
+    "latest_scene_time": "2025-07-31T18:04:21Z",
+    "latest_n_dc_with_pixels": 113,
+    "buffer_m": 500.0,
+    "method": "point_sample_then_buffer_count",
+    "min_pixels": 5.0,
+    "best_scene_time": "2025-07-31T18:04:21Z",
+    "best_n_dc_with_pixels": 113
   }
 }

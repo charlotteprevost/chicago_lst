@@ -45,14 +45,16 @@ jobs:
           set -euxo pipefail
           python3 -m pip install --user "numpy>=1.26,<2" "rasterio>=1.3,<1.5"
           COG_URL="https://pub-35e731c3513942bd8c03f959efee69d1.r2.dev/ecostress_il_lst_70m_latest.cog.tif"
+          BBOX="$(python3 -c "import json; p=json.load(open('data/chicago_dc_aoi.json')); print(f\"{p['west']:.6f},{p['south']:.6f},{p['east']:.6f},{p['north']:.6f}\")")"
           python3 analysis/26_bake_ecostress_xyz.py \
             --cog "/vsicurl/${COG_URL}" \
             --out-dir site/data/tiles/ecostress \
-            --min-zoom 6 \
-            --max-zoom 10 \
+            --min-zoom 9 \
+            --max-zoom 12 \
+            --bbox "${BBOX}" \
             --meta-json site/data/ecostress_highres_latest.json \
             --public-tiles-url "../data/tiles/ecostress/{z}/{x}/{y}.png" \
-            --scene-time "2025-07-31T18:05:13Z"
+            --scene-time "2025-07-31T18:04:21Z"
 
       - uses: actions/upload-pages-artifact@v3
         with:

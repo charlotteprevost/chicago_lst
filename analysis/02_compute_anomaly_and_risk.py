@@ -41,11 +41,19 @@ def main() -> None:
 
     cfg = load_config(args.config)
     out_dir = Path(cfg.outputs_dir)
+    collapsed_path = out_dir / "collapsed_aoi_dt_usable.csv"
     ts_path = out_dir / "timeseries.csv"
-    if not ts_path.exists():
-        raise SystemExit(f"Missing input: {ts_path}. Run 01_extract_zonal_timeseries.py first.")
-
-    df = pd.read_csv(ts_path)
+    if collapsed_path.exists():
+        df = pd.read_csv(collapsed_path)
+        if "is_usable" in df.columns:
+            df = df[df["is_usable"] == True].copy()  # noqa: E712
+        if "mean" not in df.columns:
+            raise SystemExit("Expected 'mean' column in collapsed_aoi_dt_usable.csv.")
+        print(f"ℹ️ Using collapsed usable observations: {collapsed_path}")
+    elif ts_path.exists():
+        df = pd.read_csv(ts_path)
+    else:
+        raise SystemExit(f"Missing input: {collapsed_path} or {ts_path}. Run 01_extract then 30_collapse.")
     if "mean" not in df.columns:
         raise SystemExit("Expected 'mean' column in timeseries.csv. Add 'mean' to config.stats.")
 
