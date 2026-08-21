@@ -56,3 +56,6 @@ __pycache__/
 # Logs
 *.log
 
+# --- Wrangler local R2 / Miniflare cache (never commit) ---
+.wrangler/
+
