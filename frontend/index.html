@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Illinois night heat</title>
+    <title>Chicago night heat</title>
 
     <!-- Use CDN so the app works when served from this folder -->
     <link
@@ -18,7 +18,7 @@
   <body>
     <header class="topbar">
       <div class="topbar__left">
-        <div class="title">Illinois night heat</div>
+        <div class="title">Chicago night heat</div>
         <div class="subtitle">ECOSTRESS LST snapshot (70 m) and data-center overlays</div>
       </div>
 
@@ -29,10 +29,6 @@
         <button id="toggleEng" class="help-btn" type="button" aria-expanded="false">
           Engineering
         </button>
-        <label class="control">
-          <span>Dataset</span>
-          <select id="dataset"></select>
-        </label>
         <label class="control control--inline">
           <span>Overlays</span>
           <label class="check">
@@ -73,24 +69,6 @@
       </div>
 
       <div class="topbar__secondary">
-        <div id="timeControls" hidden>
-          <label class="control">
-            <span>Date (UTC)</span>
-            <input id="date" type="date" />
-          </label>
-          <label id="timeWrap" class="control">
-            <span>Time (UTC)</span>
-            <input id="time" type="time" step="600" />
-          </label>
-          <div class="control control--inline">
-            <span>Timeline</span>
-            <div class="inline-buttons">
-              <button id="prev" type="button">Prev</button>
-              <button id="play" type="button">Play</button>
-              <button id="next" type="button">Next</button>
-            </div>
-          </div>
-        </div>
         <label class="control">
           <span>AOI / Site</span>
           <select id="siteFilter">
@@ -111,8 +89,10 @@
         <h3>How this map works</h3>
         <ol>
           <li>
-            <b>Temperature background:</b> night land-surface temperature from NASA ECOSTRESS
-            (~70 m). If that layer is down, the map falls back to a coarser global night layer.
+            <b>Temperature background:</b> one ECOSTRESS ISS pass (~70 m land-surface temperature),
+            mosaicked from same-timestamp tiles and clipped to the Chicago data-center cluster. If
+            those tiles fail, the street map stays and the status line says temperature tiles are
+            unavailable.
           </li>
           <li>
             <b>Data center dots:</b> Chicago-area sites from the project list. Click a dot for name
@@ -131,14 +111,19 @@
             into pre-open and post-open windows.
           </li>
           <li>
-            <b>Partial coverage:</b> ECOSTRESS is a swath sensor. One scene often covers only part
-            of Illinois; a hard edge on the temperature layer is expected, not a broken map.
+            <b>Partial coverage:</b> ECOSTRESS is a swath sensor. A hard edge means that pass missed
+            part of the cluster, not a broken map. Sites still get an irregular night-by-night
+            series on nights they were observed.
           </li>
         </ol>
       </aside>
       <aside id="insightPanel" class="insight-panel">
         <h3>Summary</h3>
         <div class="insight-grid">
+          <div class="insight-card">
+            <div class="insight-label">Snapshot coverage</div>
+            <div id="metricCoverage" class="insight-value">n/a</div>
+          </div>
           <div class="insight-card">
             <div class="insight-label">Visible AOIs</div>
             <div id="metricVisibleAoIs" class="insight-value">n/a</div>

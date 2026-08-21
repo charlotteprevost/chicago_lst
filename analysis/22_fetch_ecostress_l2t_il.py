@@ -1,13 +1,23 @@
 from __future__ import annotations
 
 import argparse
+import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import List, Optional, Tuple
 
 
-IL_BBOX = (-91.52, 36.97, -87.0, 42.51)  # west, south, east, north
+def load_default_bbox_csv() -> str:
+    """Chicago DC hull + buffer (EPSG:4326 west,south,east,north). Falls back to Illinois."""
+    aoi = Path(__file__).resolve().parent.parent / "data" / "chicago_dc_aoi.json"
+    if aoi.exists():
+        raw = json.loads(aoi.read_text(encoding="utf-8"))
+        return f"{raw['west']:.6f},{raw['south']:.6f},{raw['east']:.6f},{raw['north']:.6f}"
+    return "-91.52,36.97,-87.0,42.51"
+
+
+IL_BBOX = (-91.52, 36.97, -87.0, 42.51)  # west, south, east, north (legacy statewide search)
 
 
 @dataclass(frozen=True)
@@ -32,7 +42,11 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--start", required=True, help="Start date/time (YYYY-MM-DD or ISO8601)")
     ap.add_argument("--end", required=True, help="End date/time (YYYY-MM-DD or ISO8601)")
-    ap.add_argument("--bbox", default=None, help="west,south,east,north (default: Illinois rough bbox)")
+    ap.add_argument(
+        "--bbox",
+        default=None,
+        help="west,south,east,north (default: Chicago DC AOI from data/chicago_dc_aoi.json)",
+    )
     ap.add_argument("--out_dir", required=True, help="Download/cache directory for GeoTIFFs")
     ap.add_argument("--max_granules", type=int, default=2000, help="Limit per chunk for search/download")
     ap.add_argument(
@@ -62,7 +76,7 @@ def main() -> None:
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    bbox = parse_bbox(args.bbox)
+    bbox = parse_bbox(args.bbox or load_default_bbox_csv())
     chunk_days = int(args.chunk_days)
     if chunk_days <= 0:
         raise SystemExit("--chunk_days must be > 0")

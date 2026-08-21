@@ -48,7 +48,11 @@ def main() -> None:
         help="Sample controls within a convex-hull 'metro' around data centers buffered by this many km (default: 30). Set to 0 to disable.",
     )
     ap.add_argument("--illinois_boundary", default=None, help="Optional Illinois boundary polygon file")
-    ap.add_argument("--bbox", default=None, help="Fallback bbox west,south,east,north (default: IL rough bbox)")
+    ap.add_argument(
+        "--bbox",
+        default=None,
+        help="west,south,east,north for Earthdata search (default: Chicago DC AOI)",
+    )
     ap.add_argument("--cache_dir", default="ecostress_cache", help="Download/cache directory for ECOSTRESS GeoTIFFs")
     ap.add_argument("--outputs_dir", default="outputs_ecostress_il_qc", help="Where to write outputs")
     ap.add_argument(
@@ -226,8 +230,13 @@ def main() -> None:
             "--chunk_days",
             "30",
         ]
-        if args.bbox:
-            fetch_cmd += ["--bbox", args.bbox]
+        aoi_json = here.parent / "data" / "chicago_dc_aoi.json"
+        bbox = args.bbox
+        if not bbox and aoi_json.exists():
+            raw = json.loads(aoi_json.read_text(encoding="utf-8"))
+            bbox = f"{raw['west']:.6f},{raw['south']:.6f},{raw['east']:.6f},{raw['north']:.6f}"
+        if bbox:
+            fetch_cmd += ["--bbox", bbox]
         run(fetch_cmd, cwd=here)
 
     # 5) Generate config for zonal stats extractor
@@ -349,6 +358,60 @@ def main() -> None:
     print(f"✅ Wrote: {out_enriched}")
     print(f"✅ Wrote: {out_summary}")
     print(f"✅ Wrote: {out_reg}")
+
+    # Collapse duplicate L2T tiles to one row per AOI × timestamp before risk/effect exports.
+    run(
+        [
+            "python",
+            str(here / "30_collapse_and_filter_observations.py"),
+            "--input",
+            str(out_reg),
+            "--out_dir",
+            str(out_dir),
+        ],
+        cwd=here,
+    )
+    usable_path = out_dir / "collapsed_aoi_dt_usable.csv"
+    if usable_path.exists():
+        collapsed = pd.read_csv(usable_path)
+        if "is_usable" in collapsed.columns:
+            collapsed = collapsed[collapsed["is_usable"] == True].copy()  # noqa: E712
+        if "pixels" in collapsed.columns:
+            collapsed["count"] = collapsed["pixels"]
+        keep_meta = [c for c in ["opening_date", "opening_year"] if c in df.columns]
+        if keep_meta:
+            meta_open = df[["aoi_id"] + keep_meta].drop_duplicates("aoi_id")
+            collapsed = collapsed.merge(meta_open, on="aoi_id", how="left")
+        collapsed.to_csv(out_enriched, index=False)
+        collapsed.to_csv(out_reg, index=False)
+        agg = (
+            collapsed.groupby(["date", "buffer_m", "is_data_center"], as_index=False)
+            .agg(mean=("mean", "mean"), median=("median", "mean"), p90=("p90", "mean"), n=("count", "sum"))
+            .copy()
+        )
+        pivot = agg.pivot_table(index=["date", "buffer_m"], columns="is_data_center", values=["mean", "median", "p90", "n"])
+        pivot.columns = [f"{m}_{'dc' if int(k)==1 else 'ctrl'}" for m, k in pivot.columns.to_list()]
+        pivot = pivot.reset_index()
+        if "mean_dc" in pivot.columns and "mean_ctrl" in pivot.columns:
+            pivot["mean_diff_dc_minus_ctrl"] = pivot["mean_dc"] - pivot["mean_ctrl"]
+        pivot.to_csv(out_summary, index=False)
+        print(f"✅ Rewrote collapsed tables: {out_enriched.name}, {out_reg.name}, {out_summary.name}")
+
+    n_dc = int(aois_all.loc[aois_all["is_data_center"] == 1, "site_id"].nunique()) if "site_id" in aois_all.columns else None
+    cov_cmd = [
+        "python",
+        str(here / "33_export_coverage_tables.py"),
+        "--out_dir",
+        str(out_dir),
+        "--buffer_m",
+        "500",
+        "--web_json",
+        str((here.parent / "data" / "coverage_latest.json").resolve()),
+    ]
+    if n_dc:
+        cov_cmd += ["--n_dc_sites", str(n_dc)]
+    run(cov_cmd, cwd=here)
+
     print(f"ℹ️ ECOSTRESS cache: {cache_dir} (you can delete after run)")
 
 

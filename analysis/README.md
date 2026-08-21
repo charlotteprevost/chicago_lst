@@ -312,16 +312,24 @@ Outputs:
 
 ECOSTRESS is tiled; the same AOI+timestamp can be hit by multiple tiles. Collapse to one row per AOI per timestamp and filter low-coverage observations:
 
+`23_run_il_ecostress_dc_study.py` now calls `30_collapse_and_filter_observations.py` before risk/effect tables, then `33_export_coverage_tables.py` (per-pass and per-site coverage; no extra mosaics). You can still run collapse by hand:
+
 ```bash
 python 30_collapse_and_filter_observations.py \
   --input outputs_ecostress_il_qc/regression_ready_rows.csv \
   --out_dir outputs_ecostress_il_qc
 
+python 33_export_coverage_tables.py \
+  --out_dir outputs_ecostress_il_qc \
+  --buffer_m 500 \
+  --web_json ../data/coverage_latest.json
+
 python 31_recompute_summary_from_usable.py \
   --input outputs_ecostress_il_qc/collapsed_aoi_dt_usable.csv \
   --out_dir outputs_ecostress_il_qc
 # collapse duplicate AOI-date tile hits and filter low-coverage rows
-# then recompute summary metrics from usable observations
+# export per-pass / per-site coverage for the combined series
+# then optionally recompute summary metrics from usable observations
 ```
 
 ### 4) Covariates + covariate-matched controls (recommended)

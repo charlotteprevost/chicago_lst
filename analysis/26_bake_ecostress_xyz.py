@@ -189,12 +189,12 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         default="../data/tiles/ecostress",
         help="Output tile root (default: ../data/tiles/ecostress).",
     )
-    p.add_argument("--min-zoom", type=int, default=6)
+    p.add_argument("--min-zoom", type=int, default=9)
     p.add_argument("--max-zoom", type=int, default=12)
     p.add_argument(
         "--bbox",
-        default="-91.52,36.97,-87.0,42.51",
-        help="west,south,east,north in EPSG:4326 degrees (Illinois default).",
+        default="",
+        help="west,south,east,north in EPSG:4326. Default: data/chicago_dc_aoi.json.",
     )
     p.add_argument("--vmin", type=float, default=0.0, help="Colormap min (°C).")
     p.add_argument("--vmax", type=float, default=45.0, help="Colormap max (°C).")
@@ -217,10 +217,19 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     return p
 
 
+def _default_chicago_bbox() -> str:
+    p = Path(__file__).resolve().parent.parent / "data" / "chicago_dc_aoi.json"
+    if p.exists():
+        raw = json.loads(p.read_text(encoding="utf-8"))
+        return f"{raw['west']:.6f},{raw['south']:.6f},{raw['east']:.6f},{raw['north']:.6f}"
+    return "-88.380031,41.520783,-87.465940,42.434148"
+
+
 def main() -> None:
     args = _build_arg_parser().parse_args()
     meta_json = Path(args.meta_json).expanduser().resolve()
-    west, south, east, north = [float(v) for v in args.bbox.split(",")]
+    bbox_csv = args.bbox.strip() or _default_chicago_bbox()
+    west, south, east, north = [float(v) for v in bbox_csv.split(",")]
 
     if args.update_meta_only:
         if not args.public_tiles_url:
