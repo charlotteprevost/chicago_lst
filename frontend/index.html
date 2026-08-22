@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Chicago night heat</title>
+    <title>Chicago ECOSTRESS LST</title>
 
     <!-- Use CDN so the app works when served from this folder -->
     <link
@@ -18,8 +18,8 @@
   <body>
     <header class="topbar">
       <div class="topbar__left">
-        <div class="title">Chicago night heat</div>
-        <div class="subtitle">ECOSTRESS LST snapshot (70 m) and data-center overlays</div>
+        <div class="title">Chicago ECOSTRESS LST</div>
+        <div class="subtitle">22-night pipeline · map shows one same-pass snapshot (70 m)</div>
       </div>
 
       <div class="topbar__primary">
@@ -29,6 +29,13 @@
         <button id="toggleEng" class="help-btn" type="button" aria-expanded="false">
           Engineering
         </button>
+        <a
+          class="help-btn help-btn--link"
+          href="https://github.com/charlotteprevost/chicago_lst"
+          target="_blank"
+          rel="noopener noreferrer"
+          >GitHub</a
+        >
         <label class="control control--inline">
           <span>Overlays</span>
           <label class="check">
@@ -90,17 +97,17 @@
         <ol>
           <li>
             <b>Temperature background:</b> one ECOSTRESS ISS pass (~70 m land-surface temperature),
-            mosaicked from same-timestamp tiles and clipped to the Chicago data-center cluster. If
-            those tiles fail, the street map stays and the status line says temperature tiles are
-            unavailable.
+            mosaicked from same-timestamp tiles and clipped to the Chicago data-center cluster.
+            The pipeline processed 22 nights; this image is the max-coverage pass (2025-07-31),
+            not a multi-night collage. If those tiles fail, the street map stays and the status
+            line says temperature tiles are unavailable.
           </li>
           <li>
             <b>Data center dots:</b> Chicago-area sites from the project list. Click a dot for name
             and address.
           </li>
           <li>
-            <b>AOI risk:</b> buffer polygons scored from recent heat (anomaly, hot-night count, and
-            trend). Turn the overlay on from the top bar.
+            <b>AOI risk:</b> optional buffer scores (off by default). Not the first-look story.
           </li>
           <li>
             <b>DC Δ vs controls:</b> each data-center buffer compared with matched nearby areas at
@@ -163,6 +170,16 @@ analysis/*.py -----> data/*.geojson + metadata JSON</pre>
         aria-label="Map panel"
       >
         <div id="map" class="map" role="application" aria-label="Interactive map"></div>
+        <div
+          id="lstColorbar"
+          class="lst-colorbar"
+          aria-label="Land-surface temperature scale, 0 to 45 degrees Celsius"
+        >
+          <div class="lst-colorbar__title">LST (°C)</div>
+          <div class="lst-colorbar__bar" role="img" aria-hidden="true"></div>
+          <div class="lst-colorbar__ticks"><span>0</span><span>45</span></div>
+          <div id="lstColorbarDate" class="lst-colorbar__note">Snapshot date loads with tiles</div>
+        </div>
         <div id="map-loading" class="map-loading" role="status" aria-live="polite" aria-hidden="false">
           <div class="map-loading-card">
             <span class="map-loading-dot" aria-hidden="true"></span>
