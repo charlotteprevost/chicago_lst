@@ -40,6 +40,8 @@ def test_main_uses_titiler_paths_and_chicago_clamp():
     assert "wakeTitiler" in main_js
     assert "updateWhenIdle" in main_js
     assert "maxBoundsViscosity" in main_js
+    assert "nights in analysis" in main_js
+    assert "lstColorbarDate" in main_js
     assert "panInsideBounds" not in main_js
     assert "viirs_night_global" not in main_js
     assert "GibsTimeLayer" not in main_js
@@ -55,10 +57,14 @@ def test_html_is_ecostress_only_without_timeline():
     html = _read(FRONTEND / "index.html")
     assert 'id="timeControls"' not in html
     assert 'id="dataset"' not in html
-    assert "Chicago night heat" in html
+    assert "Chicago ECOSTRESS LST" in html
+    assert "Chicago night heat" not in html
     assert "plain English" not in html
     assert 'id="overlayDC"' in html
     assert 'id="metricCoverage"' in html
+    assert 'id="lstColorbar"' in html
+    assert "help-btn--link" in html
+    assert "github.com/charlotteprevost/chicago_lst" in html
     assert re.search(r'id="overlayRisk"[^>]*checked', html) is None
     assert re.search(r'id="overlayEffect"[^>]*checked', html) is None
     assert re.search(r'id="overlayDC"[^>]*checked', html)
@@ -71,6 +77,7 @@ def test_css_viewport_shell_and_hidden_override():
     assert "[hidden]" in css
     assert "display: none !important" in css
     assert "max-height: min(40vh, calc(100% - 20px))" in css
+    assert ".lst-colorbar" in css
 
 
 def test_help_starts_closed():

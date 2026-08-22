@@ -67,6 +67,12 @@ body {
   background: rgba(87, 217, 163, 0.28);
 }
 
+a.help-btn--link {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
 .control {
   display: grid;
   gap: 4px;
@@ -177,7 +183,7 @@ button:hover { background: rgba(255, 255, 255, 0.14); }
   font-size: 12px;
   color: var(--geo-muted);
   min-width: 180px;
-  max-width: min(420px, 100%);
+  max-width: min(560px, 100%);
   text-align: right;
   line-height: 1.35;
 }
@@ -198,6 +204,54 @@ button:hover { background: rgba(255, 255, 255, 0.14); }
   height: 100%;
   width: 100%;
   min-height: 240px;
+}
+
+.lst-colorbar {
+  position: absolute;
+  left: 12px;
+  bottom: 28px;
+  z-index: 500;
+  width: 196px;
+  padding: 8px 10px;
+  border-radius: var(--geo-radius-sm, 8px);
+  border: 1px solid var(--geo-panel-border);
+  background: var(--geo-panel-bg);
+  box-shadow: var(--geo-shadow);
+  color: var(--geo-text);
+  font-size: 11px;
+  pointer-events: none;
+}
+
+.lst-colorbar__title {
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.lst-colorbar__bar {
+  height: 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: linear-gradient(
+    to right,
+    #000004,
+    #420a68,
+    #932667,
+    #dd513a,
+    #fca50a,
+    #fcffa4
+  );
+}
+
+.lst-colorbar__ticks {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  color: var(--geo-muted);
+}
+
+.lst-colorbar__note {
+  margin-top: 4px;
+  color: var(--geo-muted);
 }
 
 .map-shell--loading .map-loading {

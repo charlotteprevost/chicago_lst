@@ -62,15 +62,37 @@ const THERMAL_TILE_OPTS = {
 
 let snapshotTime = null;
 let snapshotCoverage = null;
+let analysisCoverage = { nNights: null, medianObs: null };
+let thermalReady = false;
 
-function snapshotStatusText(ds) {
-  const when = snapshotTime ? ` • ${snapshotTime}` : "";
-  const cov = snapshotCoverage;
-  const covBit =
-    cov && Number.isFinite(cov.n) && Number.isFinite(cov.m)
-      ? ` • this snapshot covers ${cov.n} of ${cov.m} sites`
-      : "";
-  return `ECOSTRESS snapshot${when}${covBit}${ds?.label ? ` • ${ds.label}` : ""}`;
+function formatSnapshotDate(iso) {
+  if (!iso) return null;
+  const s = String(iso);
+  const day = s.includes("T") ? s.slice(0, 10) : s.slice(0, 10);
+  return day || null;
+}
+
+function snapshotStatusText() {
+  const day = formatSnapshotDate(snapshotTime);
+  const nights = Number(analysisCoverage.nNights);
+  const nightsBit = Number.isFinite(nights)
+    ? `${nights} nights in analysis`
+    : "multi-night analysis";
+  const when = day ? `snapshot ${day} (max coverage)` : "same-pass snapshot (max coverage)";
+  return `ECOSTRESS 70 m · ${nightsBit} · ${when}`;
+}
+
+function updateColorbarDate() {
+  const el = document.getElementById("lstColorbarDate");
+  if (!el) return;
+  const day = formatSnapshotDate(snapshotTime);
+  el.textContent = day ? `Snapshot ${day}` : "Snapshot date loads with tiles";
+}
+
+function showReadyStatus() {
+  thermalReady = true;
+  updateColorbarDate();
+  setStatus(snapshotStatusText());
 }
 
 function chicagoTileForZoom(z) {
@@ -286,8 +308,9 @@ function attachThermalLoadHandlers(layer, { doneMsg }) {
     console.warn("tileerror", { coords: e?.coords ?? null, url: e?.tile?.src ?? null });
   });
   layer.once("load", () => {
+    showReadyStatus();
     if (tileErrors) {
-      finish("Temperature tiles loaded; some tiles are missing (coverage or server).");
+      finish(`${snapshotStatusText()}; some tiles are missing (coverage or server).`);
       return;
     }
     finish(doneMsg);
@@ -309,7 +332,7 @@ async function setBaseLayerForDataset(ds) {
     setStatus("Rendering ECOSTRESS tiles…");
     baseLayer = await makeTitilerLayer(ds);
     baseLayer.addTo(map);
-    attachThermalLoadHandlers(baseLayer, { doneMsg: snapshotStatusText(ds) });
+    attachThermalLoadHandlers(baseLayer, { doneMsg: snapshotStatusText() });
     updateInsightPanel();
   } catch (e) {
     setMapLoading(false);
@@ -767,8 +790,10 @@ function buildEffectLayer(gj) {
   return layer;
 }
 
+let riskLegend = null;
+
 function ensureLegend() {
-  if (!riskCfg) return;
+  if (riskLegend || !riskCfg) return;
   // Use top-right so it can't fall off-screen on shorter viewports.
   const legend = L.control({ position: "topright" });
   legend.onAdd = () => {
@@ -802,12 +827,23 @@ function ensureLegend() {
     return div;
   };
   legend.addTo(map);
+  riskLegend = legend;
 }
 
-ensureLegend();
+function setRiskLegendVisible(on) {
+  if (!on) {
+    if (riskLegend) {
+      map.removeControl(riskLegend);
+      riskLegend = null;
+    }
+    return;
+  }
+  ensureLegend();
+}
 
 async function syncRiskOverlay() {
   const enabled = Boolean(els.overlayRisk?.checked);
+  setRiskLegendVisible(enabled);
   if (!enabled) {
     if (riskLayer) map.removeLayer(riskLayer);
     return;
@@ -937,10 +973,19 @@ fetchJson(config.coverageUrl || "../data/coverage_latest.json")
     const snap = cov?.snapshot || cov;
     const n = Number(snap?.n_dc_with_pixels);
     const m = Number(snap?.n_dc_sites || cov?.n_dc_sites);
+    const nights = Number(cov?.n_study_nights);
+    const medianObs = Number(cov?.median_n_obs);
+    if (Number.isFinite(nights)) analysisCoverage.nNights = nights;
+    if (Number.isFinite(medianObs)) analysisCoverage.medianObs = medianObs;
+    if (snap?.scene_time) {
+      snapshotTime = snap.scene_time;
+      updateColorbarDate();
+    }
     if (!snapshotCoverage && Number.isFinite(n) && Number.isFinite(m) && m > 0) {
       snapshotCoverage = { n, m };
       updateInsightPanel();
     }
+    if (thermalReady) showReadyStatus();
   })
   .catch(() => {});
 syncDcOverlay();

@@ -1,26 +1,32 @@
-## Chicago Data Centers vs. Land Surface Temperature
+## Chicago ECOSTRESS LST
 
-Interactive map and analysis project about nighttime surface heat and Chicago-area data centers.
+Public ECOSTRESS land-surface-temperature pipeline (QC, °C, COG) over **22 Chicago nights**, plus a Leaflet map whose background is **one same-pass snapshot**.
 
 **Live app:** `https://charlotteprevost.github.io/chicago_lst/frontend/`
 
-The temperature layer is a **same-pass ECOSTRESS snapshot** (~70 m), mosaicked from one ISS overpass and clipped to the Chicago data-center cluster. It is not a live feed and does not mix nights. A remaining swath edge means that pass missed part of the cluster.
+The map pixels are the 2025-07-31 ISS overpass (~70 m) that covered all **113** mapped data-center sites. It is not a live feed and does not mix nights. Site stats and the optional DC Δ overlay use the multi-night series (median 10 observations per site). A remaining swath edge means that pass missed part of the cluster.
 
 ## Portfolio quick view
 
 ### Screenshots
 
-![Map overview — AOI, data centers, and thermal context](docs/portfolio_screenshots/shot-map-overview.svg)
-![Layers — DC delta vs controls and legend](docs/portfolio_screenshots/shot-layers-delta.svg)
+![Map overview — title, 22-night status, colorbar, data centers](docs/portfolio_screenshots/shot-map-overview.jpg)
+![How this works — same-pass snapshot vs multi-night analysis](docs/portfolio_screenshots/shot-layers-delta.jpg)
 
-The files above are **SVG placeholders** (versioned, lightweight). Replace them with real PNG/WebP captures from the live site or local when you want pixel-perfect portfolio shots; keep the same paths or update the links here.
+### Demo flow (recruiter / LinkedIn walkthrough)
+
+| Step | Time | Action | What to highlight |
+|------|------|--------|-------------------|
+| 1 | 5–8s | Open the [live map](https://charlotteprevost.github.io/chicago_lst/frontend/) | Title **Chicago ECOSTRESS LST**; colorbar 0–45 °C |
+| 2 | 8–12s | Read the status line + colorbar date | 22 nights in analysis; snapshot **2025-07-31** (max coverage) |
+| 3 | 8–12s | Data-center dots (on by default) | 113 mapped sites; leave **AOI risk** off |
+| 4 | 5s | Click **GitHub** | QC → °C → same-pass COG → Pages / R2 |
 
 ### Demo flow (local)
 
-1. **Serve the frontend:** From `frontend/`, run `python -m http.server 8080` (or any static server on a free port).
-2. **Open the app:** Visit `http://localhost:8080` in a browser.
-3. **Configure tiles (optional):** For high-res ECOSTRESS via TiTiler, set `titilerBaseUrl` in `frontend/config.js` to your deployed Render URL (see **Render (TiTiler) publish** below).
-4. **Walk the story:** Data-center points are on by default. Turn on AOI risk and DC Δ vs controls, then pan/zoom over Chicago and read values against the legend.
+1. **Serve the repo root** so `frontend/` can fetch `data/`: `python3 -m http.server 8080`
+2. **Open the app:** `http://localhost:8080/frontend/`
+3. **Tiles:** Pages deploy bakes static XYZ. Locally, TiTiler on Render may cold-start; the street map and colorbar stay if tiles fail.
 
 ---
 
@@ -138,7 +144,7 @@ python 26_bake_ecostress_xyz.py \
 # --public-tiles-url: template written into data/ecostress_highres_latest.json
 ```
 
-5. If `tiles_url` is missing or the probe tile 404s, the app falls back to TiTiler (`/cog/...`), then NASA GIBS.
+5. If `tiles_url` is missing or the probe tile 404s, the app falls back to TiTiler (`/cog/...`). If that fails, the OSM basemap stays and the status line reports that temperature tiles are unavailable.
 
 ---
 
