@@ -9,6 +9,8 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 ANALYSIS = ROOT / "analysis"
+if str(ANALYSIS) not in sys.path:
+    sys.path.insert(0, str(ANALYSIS))
 
 
 def _load_module(module_name: str, file_path: Path):
@@ -62,6 +64,35 @@ def test_normalize_url():
     assert enrich_mod.normalize_url("") == ""
     assert enrich_mod.normalize_url("example.com/page") == "https://example.com/page"
     assert enrich_mod.normalize_url("https://example.com") == "https://example.com"
+
+
+def test_apply_verified_opening_dates_fills_known_sites():
+    export_mod = _load_module("export_dc_effect", ANALYSIS / "06_export_dc_effect_geojson.py")
+    verified = export_mod.load_verified_opening_dates(ROOT / "data" / "chicago_data_centers_183.csv")
+    known = {
+        "qts chicago 1 dc1",
+        "coresite chicago (ch2)",
+        "gdc - chicago ch1 data center",
+        "gdc - chicago ch2 data center",
+        "equinix ch3",
+        "stream dc chicago i",
+        "stream dc chicago ii",
+        "equinix ch2",
+        "2200 busse road (ch1)",
+        "2299 busse road (ch2)",
+        "aligned ord-01",
+        "serverfarm chicago data center ch1",
+        "skybox chicago i",
+    }
+    assert known.issubset(set(verified["name_key"]))
+    import pandas as pd
+
+    df = pd.DataFrame({"site_name": ["Equinix CH3", "Unknown Hall"], "opening_date": [pd.NaT, pd.NaT]})
+    out = export_mod.apply_verified_opening_dates(df, verified)
+    ch3 = out.loc[out["site_name"] == "Equinix CH3", "opening_date"].iloc[0]
+    unknown = out.loc[out["site_name"] == "Unknown Hall", "opening_date"].iloc[0]
+    assert pd.notna(ch3)
+    assert pd.isna(unknown)
 
 
 def test_webmercator_tile_bounds_and_chicago_tile():

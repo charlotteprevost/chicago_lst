@@ -310,6 +310,16 @@ def main() -> None:
         )
         df = df.merge(attrs2, on="site_id", how="left", suffixes=("", "_attr"))
 
+    dc_csv = here.parent / "data" / "chicago_data_centers_183.csv"
+    if dc_csv.exists() and "site_name" in df.columns:
+        from importlib.util import module_from_spec, spec_from_file_location
+
+        spec = spec_from_file_location("export_dc_effect", here / "06_export_dc_effect_geojson.py")
+        assert spec is not None and spec.loader is not None
+        export_mod = module_from_spec(spec)
+        spec.loader.exec_module(export_mod)
+        df = export_mod.apply_verified_opening_dates(df, export_mod.load_verified_opening_dates(dc_csv))
+
     # Keep controls on the same timestamps as DC rows.
     dc_dates = df.loc[df["is_data_center"] == 1, "date"].dropna().unique().tolist()
     if dc_dates:
