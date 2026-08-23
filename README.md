@@ -282,6 +282,7 @@ Opening dates in `chicago_data_centers_183.csv` follow a strict verification pol
 - mark status:
   - `verified` only with date + source URL
   - otherwise `needs_research`
+- **13 of 113** map sites currently have a verified go-live; the rest stay n/a on the DC Δ overlay. Do not treat this as a complete opening table.
 
 ## Known limitations and interpretation cautions
 

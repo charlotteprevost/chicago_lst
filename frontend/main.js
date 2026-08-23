@@ -780,9 +780,11 @@ function buildEffectLayer(gj) {
           <div><b>Post-open window</b>: ${(p.post_open_first_dt ?? "n/a")} → ${(p.post_open_last_dt ?? "n/a")}</div>
           <div><b>Pre-open Δ mean</b>: ${fmtNum(p.delta_pre_open_mean_c, 2)} °C</div>
           <div><b>Post-open Δ mean</b>: ${fmtNum(p.delta_post_open_mean_c, 2)} °C</div>
-          <div style="opacity:.75;margin-top:6px">
-            If opening date is n/a, the site metadata lacks opening year.
-          </div>
+          ${
+            p.opening_date
+              ? ""
+              : `<div style="opacity:.75;margin-top:6px">If opening date is n/a, the site metadata lacks a verified opening cite.</div>`
+          }
         </div>`
       );
     },
