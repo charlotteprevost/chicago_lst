@@ -13,7 +13,7 @@ The map pixels are the 2025-07-31 ISS overpass (~70 m) that covered all **113** 
 ![Map overview — title, 22-night status, colorbar, data centers](docs/portfolio_screenshots/shot-map-overview.jpg)
 ![How this works — same-pass snapshot vs multi-night analysis](docs/portfolio_screenshots/shot-layers-delta.jpg)
 
-### Demo flow (recruiter / LinkedIn walkthrough)
+### Demo
 
 | Step | Time | Action | What to highlight |
 |------|------|--------|-------------------|
@@ -22,7 +22,7 @@ The map pixels are the 2025-07-31 ISS overpass (~70 m) that covered all **113** 
 | 3 | 8–12s | Data-center dots (on by default) | 113 mapped sites; leave **AOI risk** off |
 | 4 | 5s | Click **GitHub** | QC → °C → same-pass COG → Pages / R2 |
 
-### Demo flow (local)
+### Demo (local)
 
 1. **Serve the repo root** so `frontend/` can fetch `data/`: `python3 -m http.server 8080`
 2. **Open the app:** `http://localhost:8080/frontend/`
@@ -30,15 +30,13 @@ The map pixels are the 2025-07-31 ISS overpass (~70 m) that covered all **113** 
 
 ---
 
-## 1) Purpose of this app
+## 1) Purpose
 
-### What this app does
-
-This app helps answer a practical question:
+### Example case use
 
 **Are neighborhoods around data centers staying hotter at night than comparable nearby areas?**
 
-It combines satellite-derived thermal data with mapped data center locations and shows three overlays:
+The app combines satellite-derived thermal data with mapped data center locations and shows three overlays:
 
 - **Area of interest (AOI) risk**: a simple heat-risk score for each mapped area.
 - **Data centers**: known data center locations used in the analysis.
@@ -46,11 +44,11 @@ It combines satellite-derived thermal data with mapped data center locations and
 
 ### How to read it
 
-- Higher positive delta values mean data-center areas were warmer than matched controls.
+- Higher positive Δ values mean data-center areas were warmer than matched controls.
 - Values near zero mean little difference.
 - Negative values mean data-center areas were cooler than matched controls.
 
-### What this app is not
+### What this app is _not_
 
 - It does **not** prove causality by itself.
 - It is an observational, geospatial comparison workflow.
@@ -58,7 +56,7 @@ It combines satellite-derived thermal data with mapped data center locations and
 
 ---
 
-## 2) Developer guide (run it yourself)
+## 2) Developer guide
 
 ### Repo structure
 
@@ -82,7 +80,7 @@ source .venv/bin/activate          # activate the environment
 pip install -r requirements.txt    # install analysis dependencies
 ```
 
-Run the Chicago ECOSTRESS study (fetch bbox defaults to the DC hull + 10 km):
+To run Chicago ECOSTRESS study (fetch bbox defaults to the DC hull + 10 km):
 
 ```bash
 python 23_run_il_ecostress_dc_study.py \
@@ -97,7 +95,7 @@ python 23_run_il_ecostress_dc_study.py \
 # --outputs_dir: folder for generated outputs
 ```
 
-Build DC effect GeoJSON for the web map:
+To build DC effect GeoJSON for the web map:
 
 ```bash
 python 06_export_dc_effect_geojson.py \
@@ -107,7 +105,7 @@ python 06_export_dc_effect_geojson.py \
 # --out: GeoJSON consumed by the frontend effect overlay
 ```
 
-### GitHub Pages publish
+### To publish to GitHub Pages
 
 1. Set repository Pages source to **GitHub Actions**.
 2. Push to `main`.
@@ -115,16 +113,14 @@ python 06_export_dc_effect_geojson.py \
 4. Public URL: `https://charlotteprevost.github.io/chicago_lst/frontend/`
    The Pages workflow also bakes a static XYZ PNG pyramid (z6–z10) from the public COG when GDAL/rasterio is available, so first paint does not wait on Render.
 
-### Render (TiTiler) publish
+### To publish to Render (TiTiler)
 
 1. Create Render service from this repo using `render.yaml`.
 2. Use `backend/` as service root (`rootDir: backend` in `render.yaml`).
 3. Health check path is `/`.
 4. Put your service URL in `frontend/config.js` as `titilerBaseUrl`.
 
-### High-res ECOSTRESS tiles
-
-To use high-resolution ECOSTRESS LST in the app:
+### To use high-res ECOSTRESS LST in the app:
 
 1. Build a COG from raster(s) in `analysis/` (`24_make_ecostress_cog.py` or `25_publish_latest_ecostress_cog.py`).
 2. Host COG at a public URL that supports byte-range requests.
@@ -148,9 +144,9 @@ python 26_bake_ecostress_xyz.py \
 
 ---
 
-## 3) Full methods: all sources, math, stats, and assumptions
+## 3) Methods: sources/math/stats/assumptions
 
-## Data sources (all used by this project)
+## Data sources
 
 ### Thermal imagery and map tiles
 
@@ -171,13 +167,13 @@ python 26_bake_ecostress_xyz.py \
 - Geocoded points:
   - `data/chicago_data_centers_183.geojson`
 
-### Derived overlays served to the frontend
+### Derived overlays served to frontend
 
 - `data/aoi_risk_latest.geojson` (risk scoring overlay)
 - `data/dc_effect_cumulative.geojson` (data center vs control effect overlay)
 - `data/ecostress_highres_latest.json` (current COG pointer for TiTiler)
 
-### Optional covariates (advanced modeling stage)
+### Optional covariates (advanced modeling)
 
 The analysis pipeline includes optional covariate extraction/matching steps (`32+` scripts) and manifest builders; see `analysis/README.md` for full covariate workflow details.
 
@@ -204,7 +200,7 @@ Implemented in generated config and extraction scripts:
 - Companion masks referenced by filename convention:
   - `*_cloud.tif`, `*_water.tif`, `*_QC.tif`
 
-## Math and statistics used
+## Math & statistics used
 
 ### A) Risk/anomaly layer (`analysis/02_compute_anomaly_and_risk.py`)
 
