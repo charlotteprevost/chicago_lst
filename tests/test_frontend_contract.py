@@ -40,6 +40,8 @@ def test_main_uses_titiler_paths_and_chicago_clamp():
     assert "wakeTitiler" in main_js
     assert "updateWhenIdle" in main_js
     assert "maxBoundsViscosity" in main_js
+    assert "animate: false" in main_js
+    assert "map.setView(ds0.defaultView.center" not in main_js
     assert "nights in analysis" in main_js
     assert "lstColorbarDate" in main_js
     assert "panInsideBounds" not in main_js

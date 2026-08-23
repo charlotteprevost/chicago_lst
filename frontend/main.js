@@ -251,6 +251,13 @@ function setMapLoading(on) {
   if (mapLoadingEl) mapLoadingEl.setAttribute("aria-hidden", on ? "false" : "true");
 }
 
+const FALLBACK_CHICAGO_AOI = {
+  west: -88.38619718818079,
+  south: 41.503652247625865,
+  east: -87.45465485643633,
+  north: 42.43690163419079,
+};
+
 function boundsFromAoi(aoi) {
   if (!aoi || !Number.isFinite(aoi.south)) return null;
   const raw = L.latLngBounds(
@@ -260,19 +267,39 @@ function boundsFromAoi(aoi) {
   return raw.pad(0.08);
 }
 
-async function applyChicagoMapClamp() {
+function aoiBoxChanged(prev, next) {
+  if (!prev || !next) return true;
+  const eps = 1e-4;
+  return (
+    Math.abs(prev.getSouth() - next.getSouth()) > eps ||
+    Math.abs(prev.getWest() - next.getWest()) > eps ||
+    Math.abs(prev.getNorth() - next.getNorth()) > eps ||
+    Math.abs(prev.getEast() - next.getEast()) > eps
+  );
+}
+
+function applyChicagoMapClampFromAoi(aoi) {
+  const box = boundsFromAoi(aoi);
+  if (!box) return null;
+  map.setMinZoom(9);
+  // No extra pixel padding: that view sits outside maxBounds and viscosity 1.0
+  // bounces the camera left/right on load. boundsFromAoi already pads 8%.
+  map.fitBounds(box, { maxZoom: 10, animate: false });
+  map.setMaxBounds(box);
+  return box;
+}
+
+async function applyChicagoMapClamp(appliedBox) {
   let aoi = null;
   try {
     aoi = await fetchJson(config.aoiUrl || "../data/chicago_dc_aoi.json");
   } catch (e) {
     console.warn("Chicago AOI JSON missing; using default cluster box", e);
-    aoi = { west: -88.38, south: 41.52, east: -87.47, north: 42.43 };
+    aoi = FALLBACK_CHICAGO_AOI;
   }
-  const box = boundsFromAoi(aoi);
-  if (!box) return;
-  map.setMaxBounds(box);
-  map.setMinZoom(9);
-  map.fitBounds(box, { padding: [24, 24], maxZoom: 10 });
+  const next = boundsFromAoi(aoi);
+  if (!next || !aoiBoxChanged(appliedBox, next)) return appliedBox;
+  return applyChicagoMapClampFromAoi(aoi);
 }
 
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -282,10 +309,20 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
 }).addTo(map);
 
 const ds0 = getDataset();
-map.setView(ds0.defaultView.center, ds0.defaultView.zoom);
-applyChicagoMapClamp().catch((e) => console.warn("Map clamp failed", e));
-window.setTimeout(() => map.invalidateSize(), 0);
-window.addEventListener("resize", () => map.invalidateSize());
+let chicagoClampBox = applyChicagoMapClampFromAoi(FALLBACK_CHICAGO_AOI);
+applyChicagoMapClamp(chicagoClampBox)
+  .then((box) => {
+    if (box) chicagoClampBox = box;
+  })
+  .catch((e) => console.warn("Map clamp failed", e));
+window.setTimeout(() => {
+  map.invalidateSize({ animate: false, pan: false });
+  if (chicagoClampBox) {
+    map.fitBounds(chicagoClampBox, { maxZoom: 10, animate: false });
+    map.setMaxBounds(chicagoClampBox);
+  }
+}, 0);
+window.addEventListener("resize", () => map.invalidateSize({ animate: false, pan: false }));
 
 let baseLayer = null;
 let baseLayerLoadTimer = null;
