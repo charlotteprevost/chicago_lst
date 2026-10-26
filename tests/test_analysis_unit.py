@@ -4,9 +4,13 @@ import importlib.util
 from pathlib import Path
 import sys
 
+import pytest
+
 
 ROOT = Path(__file__).resolve().parents[1]
 ANALYSIS = ROOT / "analysis"
+if str(ANALYSIS) not in sys.path:
+    sys.path.insert(0, str(ANALYSIS))
 
 
 def _load_module(module_name: str, file_path: Path):
@@ -60,3 +64,71 @@ def test_normalize_url():
     assert enrich_mod.normalize_url("") == ""
     assert enrich_mod.normalize_url("example.com/page") == "https://example.com/page"
     assert enrich_mod.normalize_url("https://example.com") == "https://example.com"
+
+
+def test_apply_verified_opening_dates_fills_known_sites():
+    # CI installs pytest + numpy only. This check needs the analysis stack.
+    pytest.importorskip("geopandas")
+    pytest.importorskip("pandas")
+    export_mod = _load_module("export_dc_effect", ANALYSIS / "06_export_dc_effect_geojson.py")
+    verified = export_mod.load_verified_opening_dates(ROOT / "data" / "chicago_data_centers_183.csv")
+    known = {
+        "qts chicago 1 dc1",
+        "coresite chicago (ch2)",
+        "gdc - chicago ch1 data center",
+        "gdc - chicago ch2 data center",
+        "equinix ch3",
+        "stream dc chicago i",
+        "stream dc chicago ii",
+        "equinix ch2",
+        "2200 busse road (ch1)",
+        "2299 busse road (ch2)",
+        "aligned ord-01",
+        "serverfarm chicago data center ch1",
+        "skybox chicago i",
+    }
+    assert known.issubset(set(verified["name_key"]))
+    import pandas as pd
+
+    df = pd.DataFrame({"site_name": ["Equinix CH3", "Unknown Hall"], "opening_date": [pd.NaT, pd.NaT]})
+    out = export_mod.apply_verified_opening_dates(df, verified)
+    ch3 = out.loc[out["site_name"] == "Equinix CH3", "opening_date"].iloc[0]
+    unknown = out.loc[out["site_name"] == "Unknown Hall", "opening_date"].iloc[0]
+    assert pd.notna(ch3)
+    assert pd.isna(unknown)
+
+
+def test_webmercator_tile_bounds_and_chicago_tile():
+    pytest.importorskip("numpy")
+    bake_mod = _load_module("bake_xyz", ANALYSIS / "26_bake_ecostress_xyz.py")
+    minx, miny, maxx, maxy = bake_mod.tile_bounds_3857(0, 0, 0)
+    assert minx < 0 < maxx
+    assert miny < 0 < maxy
+    x, y = bake_mod.lonlat_to_tile(-87.6298, 41.8781, 9)
+    assert x == 131
+    assert 180 <= y <= 190
+
+
+def test_inferno_rgba_nodata_is_transparent(tmp_path):
+    pytest.importorskip("numpy")
+    import numpy as np
+
+    bake_mod = _load_module("bake_xyz_rgba", ANALYSIS / "26_bake_ecostress_xyz.py")
+    values = np.array([[0.0, 45.0], [22.5, 0.0]], dtype=np.float32)
+    nodata = np.array([[False, False], [False, True]])
+    rgba = bake_mod.inferno_rgba(values, 0.0, 45.0, nodata)
+    assert rgba.shape == (2, 2, 4)
+    assert rgba[1, 1, 3] == 0
+    assert rgba[0, 0, 3] == 255
+    out = tmp_path / "t.png"
+    bake_mod.write_png_rgba(out, rgba)
+    assert out.stat().st_size > 32
+    meta = bake_mod.update_meta_json(
+        tmp_path / "meta.json",
+        tiles_url="https://example.com/{z}/{x}/{y}.png",
+        scene_time="2025-07-31T18:05:13Z",
+        minzoom=6,
+        maxzoom=10,
+    )
+    assert "{z}" in meta["tiles_url"]
+    assert meta["scene_time"] == "2025-07-31T18:05:13Z"

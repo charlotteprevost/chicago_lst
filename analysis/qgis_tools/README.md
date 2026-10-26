@@ -1,14 +1,16 @@
-## Canonical QGIS/PyQGIS Lane
+## Canonical QGIS/PyQGIS lane (Chicago LST)
 
-This module is the canonical QGIS/PyQGIS entry point for maintained GIS desktop-assisted processing.
+PyQGIS helpers used when converting ECOSTRESS rasters to COG live here. They are optional; the web map uses rasterio/GDAL when PyQGIS is not available.
 
-### Source of truth
+### Source of truth for this repo
 
-- Desktop project: `10_PROJECTS/projects/projects/maritime_surveillance.qgz`
-- PyQGIS support module root: `10_PROJECTS/projects/chicago_lst/analysis/qgis_tools/`
+- Analysis scripts: `chicago_lst/analysis/`
+- Web-facing outputs: `chicago_lst/data/`
+- This module: `chicago_lst/analysis/qgis_tools/`
 
 ### Rules
 
-- New QGIS/PyQGIS helpers go here (or in a submodule under this path).
+- New QGIS/PyQGIS helpers for Chicago LST go here (or in a submodule under this path).
 - Legacy scripts under `_archive/qgis_legacy_candidate/` are reference-only.
-- Keep reproducible web-facing outputs in `projects/*/analysis` and `projects/*/data`.
+- Keep reproducible web-facing outputs in `analysis/` and `data/`.
+- Desktop `.qgz` files for other portfolio apps (for example maritime surveillance) are not the source of truth for this project.

@@ -40,10 +40,41 @@ def test_went_live_status_domain():
 def test_verified_rows_have_date_and_source():
     _, rows = _read_rows()
     verified = [r for r in rows if (r.get("went_live_status") or "").strip() == "verified"]
-    assert len(verified) >= 1
+    assert len(verified) >= 13
     for row in verified:
         assert (row.get("went_live_date") or "").strip()
         assert (row.get("went_live_source_url") or "").strip()
+
+
+def test_dc_effect_geojson_opening_date_for_verified_sites():
+    import json
+
+    geo = json.loads((ROOT / "data" / "dc_effect_cumulative.geojson").read_text(encoding="utf-8"))
+    by_name: dict[str, object] = {}
+    for feat in geo.get("features") or []:
+        props = feat.get("properties") or {}
+        name = str(props.get("site_name") or "").strip().lower()
+        if name:
+            by_name[name] = props.get("opening_date")
+    required = {
+        "qts chicago 1 dc1",
+        "coresite chicago (ch2)",
+        "gdc - chicago ch1 data center",
+        "gdc - chicago ch2 data center",
+        "equinix ch3",
+        "stream dc chicago i",
+        "stream dc chicago ii",
+        "equinix ch2",
+        "2200 busse road (ch1)",
+        "2299 busse road (ch2)",
+        "aligned ord-01",
+        "serverfarm chicago data center ch1",
+        "skybox chicago i",
+    }
+    missing = required - set(by_name)
+    assert not missing, f"verified site_name missing from GeoJSON: {sorted(missing)}"
+    blank = [n for n in required if not by_name.get(n)]
+    assert not blank, f"verified site_name has null opening_date: {sorted(blank)}"
 
 
 def test_no_duplicate_name_address_pairs():

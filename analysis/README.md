@@ -1,6 +1,37 @@
 ## Case Study A — Night Heat Risk Index (time series + anomaly)
 
-This folder is the **analysis pipeline** for `chicago_lst`.
+This folder is the **analysis pipeline** for `chicago_lst` (display name: **Chicago DC Night Heat**).
+
+### Reproduce the portfolio outputs (golden path)
+
+Demo data (no Earthdata login):
+
+```bash
+cd analysis
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+python 00_make_demo_data.py
+python 01_extract_zonal_timeseries.py --config config.demo.json
+python 02_compute_anomaly_and_risk.py --config config.demo.json
+python 03_export_geojson.py --config config.demo.json
+```
+
+That writes `../data/aoi_risk_latest.geojson` for the optional heat-context overlay.
+
+Illinois ECOSTRESS DC vs controls (needs Earthdata + existing `chicago_data_centers_183.geojson`):
+
+```bash
+python 23_run_il_ecostress_dc_study.py \
+  --data_centers ../data/chicago_data_centers_183.geojson \
+  --start 2025-07-01 --end 2025-07-31 \
+  --buffers_m 250,500,1000 \
+  --outputs_dir outputs_ecostress_il_qc
+python 06_export_dc_effect_geojson.py \
+  --config outputs_ecostress_il_qc/config.ecostress_il.generated.json \
+  --out ../data/dc_effect_cumulative.geojson
+```
+
+Scripts `32+` / `36_*` / `40_*` (covariates, panel model) are optional research extras and are not required for the live map.
 
 Goal: turn a stack of dated LST rasters (or thermal proxy rasters) into:
 
@@ -263,6 +294,25 @@ Requirements for self-hosted COG URL:
 - server must support byte-range requests (`Accept-Ranges: bytes`)
 - CORS should allow `https://charlotteprevost.github.io`
 
+### 2.7) Bake static XYZ tiles (optional, faster map)
+
+On-demand TiTiler from a Render free instance is slow. For the current snapshot, bake WebMercatorQuad PNGs (EPSG:3857) and point `tiles_url` at them:
+
+```bash
+python 26_bake_ecostress_xyz.py \
+  --cog outputs_ecostress_il_qc/ecostress_il_lst_70m_latest.cog.tif \
+  --out-dir ../data/tiles/ecostress \
+  --min-zoom 6 \
+  --max-zoom 10 \
+  --public-tiles-url "../data/tiles/ecostress/{z}/{x}/{y}.png" \
+  --scene-time 2025-07-31T18:05:13Z
+# --cog: local COG or /vsicurl/<https URL>
+# --out-dir: XYZ root; tiles are gitignored
+# --public-tiles-url: template written into ../data/ecostress_highres_latest.json
+```
+
+GitHub Pages runs this at z6–z10 on deploy. The frontend uses `tiles_url` when a probe tile succeeds, otherwise TiTiler.
+
 ### Data center opening dates (verified-only workflow)
 
 To add go-live dates and citation URLs to `../data/chicago_data_centers_183.csv`:
@@ -293,16 +343,24 @@ Outputs:
 
 ECOSTRESS is tiled; the same AOI+timestamp can be hit by multiple tiles. Collapse to one row per AOI per timestamp and filter low-coverage observations:
 
+`23_run_il_ecostress_dc_study.py` now calls `30_collapse_and_filter_observations.py` before risk/effect tables, then `33_export_coverage_tables.py` (per-pass and per-site coverage; no extra mosaics). You can still run collapse by hand:
+
 ```bash
 python 30_collapse_and_filter_observations.py \
   --input outputs_ecostress_il_qc/regression_ready_rows.csv \
   --out_dir outputs_ecostress_il_qc
 
+python 33_export_coverage_tables.py \
+  --out_dir outputs_ecostress_il_qc \
+  --buffer_m 500 \
+  --web_json ../data/coverage_latest.json
+
 python 31_recompute_summary_from_usable.py \
   --input outputs_ecostress_il_qc/collapsed_aoi_dt_usable.csv \
   --out_dir outputs_ecostress_il_qc
 # collapse duplicate AOI-date tile hits and filter low-coverage rows
-# then recompute summary metrics from usable observations
+# export per-pass / per-site coverage for the combined series
+# then optionally recompute summary metrics from usable observations
 ```
 
 ### 4) Covariates + covariate-matched controls (recommended)

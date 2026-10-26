@@ -27,105 +27,8 @@ function fmtMaybeInt(v) {
   return String(Math.round(n));
 }
 
-function formatDateUTC(d) {
-  const yyyy = d.getUTCFullYear();
-  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(d.getUTCDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-function formatTimeHHMMUTC(d) {
-  const hh = String(d.getUTCHours()).padStart(2, "0");
-  const mm = String(d.getUTCMinutes()).padStart(2, "0");
-  return `${hh}:${mm}`;
-}
-
-function formatTimestampUTC(d) {
-  // ISO8601 with Z, to the minute (seconds fixed at 00).
-  return `${formatDateUTC(d)}T${formatTimeHHMMUTC(d)}:00Z`;
-}
-
-function parseDateInput(value) {
-  // HTML date input gives YYYY-MM-DD (local), interpret as UTC day for GIBS.
-  const [y, m, d] = (value || "").split("-").map((v) => Number(v));
-  if (!y || !m || !d) return null;
-  return new Date(Date.UTC(y, m - 1, d, 0, 0, 0));
-}
-
-function parseTimeInput(value) {
-  const [h, m] = (value || "").split(":").map((v) => Number(v));
-  if (Number.isNaN(h) || Number.isNaN(m)) return null;
-  if (h < 0 || h > 23 || m < 0 || m > 59) return null;
-  return { h, m };
-}
-
-function addDaysUTC(date, deltaDays) {
-  const t = Date.UTC(
-    date.getUTCFullYear(),
-    date.getUTCMonth(),
-    date.getUTCDate() + deltaDays,
-    0,
-    0,
-    0
-  );
-  return new Date(t);
-}
-
-function addMinutesUTC(date, deltaMinutes) {
-  return new Date(date.getTime() + deltaMinutes * 60 * 1000);
-}
-
-function floorToStepMinutesUTC(date, stepMinutes) {
-  const stepMs = stepMinutes * 60 * 1000;
-  return new Date(Math.floor(date.getTime() / stepMs) * stepMs);
-}
-
-class GibsTimeLayer extends L.TileLayer {
-  constructor(options) {
-    super(options.urlTemplate, {
-      ...options,
-      attribution:
-        'Imagery: <a href="https://earthdata.nasa.gov/gibs" target="_blank" rel="noopener noreferrer">NASA GIBS</a>',
-      maxZoom: options.maxZoom ?? 7,
-    });
-    this._time = options.time;
-    this._layerId = options.layerId;
-    this._tileMatrixSet = options.tileMatrixSet;
-    this._service = options.service ?? "best";
-  }
-
-  setTime(isoTime) {
-    this._time = isoTime;
-    this.redraw();
-  }
-
-  setDataset({ layerId, tileMatrixSet, maxZoom }) {
-    this._layerId = layerId;
-    this._tileMatrixSet = tileMatrixSet;
-    if (typeof maxZoom === "number") this.options.maxZoom = maxZoom;
-    this.redraw();
-  }
-
-  setService(service) {
-    this._service = service || "best";
-    this.redraw();
-  }
-
-  getTileUrl(coords) {
-    // Leaflet supplies {x,y,z}; GIBS requires {layer,time,tileMatrixSet} too.
-    const url = L.Util.template(this._url, {
-      ...coords,
-      service: this._service,
-      layer: this._layerId,
-      time: this._time,
-      tileMatrixSet: this._tileMatrixSet,
-    });
-    return url;
-  }
-}
-
-async function fetchJson(url) {
-  const res = await fetch(url, { cache: "no-store" });
+async function fetchJson(url, { cache = "default" } = {}) {
+  const res = await fetch(url, { cache });
   if (!res.ok) throw new Error(`Fetch failed: ${res.status} ${res.statusText}`);
   return await res.json();
 }
@@ -150,11 +53,105 @@ async function buildTitilerTileUrlTemplate({ titilerBaseUrl, cogUrl, tms, render
   return { template: tpl, minzoom: tj.minzoom, maxzoom: tj.maxzoom, bounds: tj.bounds };
 }
 
+const THERMAL_TILE_OPTS = {
+  opacity: 0.85,
+  updateWhenIdle: true,
+  keepBuffer: 2,
+  crossOrigin: true,
+};
+
+let snapshotTime = null;
+let snapshotCoverage = null;
+let analysisCoverage = { nNights: null, medianObs: null };
+let thermalReady = false;
+
+function formatSnapshotDate(iso) {
+  if (!iso) return null;
+  const s = String(iso);
+  const day = s.includes("T") ? s.slice(0, 10) : s.slice(0, 10);
+  return day || null;
+}
+
+function snapshotStatusText() {
+  const day = formatSnapshotDate(snapshotTime);
+  const nights = Number(analysisCoverage.nNights);
+  const nightsBit = Number.isFinite(nights)
+    ? `${nights} nights in analysis`
+    : "multi-night analysis";
+  const when = day ? `snapshot ${day} (max coverage)` : "same-pass snapshot (max coverage)";
+  return `ECOSTRESS 70 m · ${nightsBit} · ${when}`;
+}
+
+function updateColorbarDate() {
+  const el = document.getElementById("lstColorbarDate");
+  if (!el) return;
+  const day = formatSnapshotDate(snapshotTime);
+  el.textContent = day ? `Snapshot ${day}` : "Snapshot date loads with tiles";
+}
+
+function showReadyStatus() {
+  thermalReady = true;
+  setTileBanner("");
+  updateColorbarDate();
+  setStatus(snapshotStatusText());
+}
+
+function chicagoTileForZoom(z) {
+  const lon = -87.6298;
+  const lat = 41.8781;
+  const n = 2 ** z;
+  const x = Math.floor(((lon + 180) / 360) * n);
+  const latRad = (lat * Math.PI) / 180;
+  const y = Math.floor(
+    ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n
+  );
+  return { z, x, y };
+}
+
+async function probeXyzTemplate(template) {
+  const { z, x, y } = chicagoTileForZoom(9);
+  const url = template
+    .replace("{z}", String(z))
+    .replace("{x}", String(x))
+    .replace("{y}", String(y));
+  try {
+    const res = await fetch(url, { method: "GET", cache: "default" });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+function wakeTitiler() {
+  const base = config.titilerBaseUrl?.trim();
+  if (!base) return;
+  fetch(joinUrl(base, "/"), { mode: "no-cors", cache: "no-store" }).catch(() => {});
+}
+
 async function makeTitilerLayer(ds) {
   const meta = await fetchJson(ds.cogMetaUrl);
+  snapshotTime = meta?.scene_time || meta?.acquired || snapshotTime;
+  const cov = meta?.coverage || {};
+  const n = Number(cov.n_dc_with_pixels);
+  const m = Number(cov.n_dc_sites);
+  if (Number.isFinite(n) && Number.isFinite(m) && m > 0) {
+    snapshotCoverage = { n, m };
+  }
   const cogUrl = meta?.cog_url;
   const tms = meta?.tms ?? "WebMercatorQuad";
   const render = meta?.render ?? {};
+  const tilesUrl = String(meta?.tiles_url || "").trim();
+  if (tilesUrl.includes("{z}") && tilesUrl.includes("{x}") && tilesUrl.includes("{y}")) {
+    const xyzReady = await probeXyzTemplate(tilesUrl);
+    if (xyzReady) {
+      return L.tileLayer(tilesUrl, {
+        ...THERMAL_TILE_OPTS,
+        maxZoom: typeof meta.maxzoom === "number" ? meta.maxzoom : 12,
+        minZoom: typeof meta.minzoom === "number" ? meta.minzoom : 9,
+        attribution: "ECOSTRESS LST (static tiles)",
+      });
+    }
+  }
   if (!cogUrl) throw new Error("Missing cog_url in data/ecostress_highres_latest.json");
   if (String(cogUrl).includes("example.com")) {
     throw new Error("COG URL is still a placeholder. Set a real public COG in data/ecostress_highres_latest.json.");
@@ -168,11 +165,10 @@ async function makeTitilerLayer(ds) {
   });
 
   return L.tileLayer(template, {
+    ...THERMAL_TILE_OPTS,
     maxZoom: typeof maxzoom === "number" ? maxzoom : 17,
-    opacity: 0.85,
     attribution:
       'Tiles: <a href="https://developmentseed.org/titiler/" target="_blank" rel="noopener noreferrer">TiTiler</a>',
-    crossOrigin: true,
   });
 }
 
@@ -180,135 +176,136 @@ const els = {
   toggleHelp: document.getElementById("toggleHelp"),
   helpPanel: document.getElementById("helpPanel"),
   toggleEng: document.getElementById("toggleEng"),
+  toggleAdvanced: document.getElementById("toggleAdvanced"),
+  advancedPanel: document.getElementById("advancedPanel"),
+  drawer: document.getElementById("drawer"),
+  tabHelp: document.getElementById("tabHelp"),
+  tabEng: document.getElementById("tabEng"),
   engPanel: document.getElementById("engPanel"),
   engRefreshTs: document.getElementById("engRefreshTs"),
   engApiHealth: document.getElementById("engApiHealth"),
-  dataset: document.getElementById("dataset"),
   overlayRisk: document.getElementById("overlayRisk"),
   overlayDC: document.getElementById("overlayDC"),
   overlayEffect: document.getElementById("overlayEffect"),
   siteFilter: document.getElementById("siteFilter"),
   bufferFilter: document.getElementById("bufferFilter"),
-  date: document.getElementById("date"),
-  time: document.getElementById("time"),
-  timeWrap: document.getElementById("timeWrap"),
-  prev: document.getElementById("prev"),
-  next: document.getElementById("next"),
-  play: document.getElementById("play"),
+  metricCoverage: document.getElementById("metricCoverage"),
   metricVisibleAoIs: document.getElementById("metricVisibleAoIs"),
   metricMeanDelta: document.getElementById("metricMeanDelta"),
   metricMaxRisk: document.getElementById("metricMaxRisk"),
+  riskMetricCard: document.getElementById("riskMetricCard"),
   exportCsv: document.getElementById("exportCsv"),
   exportGeojson: document.getElementById("exportGeojson"),
+  tileBanner: document.getElementById("tileBanner"),
   status: document.getElementById("status"),
 };
+
+const TOUR_SITE = {
+  name: "Digital Realty Cermak",
+  lat: 41.8537537,
+  lon: -87.6183798,
+  zoom: 14,
+};
+
+function wantsTour() {
+  try {
+    return new URLSearchParams(window.location.search).get("tour") === "1";
+  } catch {
+    return false;
+  }
+}
+
+function setTileBanner(msg) {
+  if (!els.tileBanner) return;
+  if (!msg) {
+    els.tileBanner.hidden = true;
+    els.tileBanner.textContent = "";
+    return;
+  }
+  els.tileBanner.hidden = false;
+  els.tileBanner.textContent = msg;
+}
+
+function setDrawerTab(which) {
+  const help = which === "help";
+  if (els.helpPanel) els.helpPanel.hidden = !help;
+  if (els.engPanel) els.engPanel.hidden = help;
+  if (els.tabHelp) els.tabHelp.setAttribute("aria-selected", help ? "true" : "false");
+  if (els.tabEng) els.tabEng.setAttribute("aria-selected", help ? "false" : "true");
+}
+
+function setDrawerOpen(open, tab = "help") {
+  if (!els.drawer) return;
+  els.drawer.hidden = !open;
+  document.body.classList.toggle("drawer-open", open);
+  if (open) setDrawerTab(tab);
+  const helpOpen = open && tab === "help";
+  const engOpen = open && tab === "eng";
+  if (els.toggleHelp) {
+    els.toggleHelp.setAttribute("aria-expanded", helpOpen ? "true" : "false");
+    els.toggleHelp.textContent = helpOpen ? "Hide guide" : "How this works";
+  }
+  if (els.toggleEng) {
+    els.toggleEng.setAttribute("aria-expanded", engOpen ? "true" : "false");
+    els.toggleEng.textContent = engOpen ? "Hide engineering" : "Engineering";
+  }
+}
+
+function setAdvancedOpen(open) {
+  if (!els.advancedPanel || !els.toggleAdvanced) return;
+  els.advancedPanel.hidden = !open;
+  els.toggleAdvanced.setAttribute("aria-expanded", open ? "true" : "false");
+  els.toggleAdvanced.textContent = open ? "Hide advanced" : "Advanced";
+}
 
 function setStatus(msg) {
   if (!els.status) return;
   els.status.textContent = msg || "";
-  els.status.classList.toggle("status--loading", /loading/i.test(msg || ""));
+  els.status.classList.toggle("status--loading", /(loading|rendering)/i.test(msg || ""));
 }
 
 function setHelpPanelOpen(open) {
-  if (!els.helpPanel || !els.toggleHelp) return;
-  els.helpPanel.hidden = !open;
-  els.toggleHelp.setAttribute("aria-expanded", open ? "true" : "false");
-  els.toggleHelp.textContent = open ? "Hide guide" : "How this works";
+  if (open) setDrawerOpen(true, "help");
+  else if (!els.drawer?.hidden && els.helpPanel && !els.helpPanel.hidden) {
+    setDrawerOpen(false);
+  }
 }
 
 function setEngPanelOpen(open) {
-  if (!els.engPanel || !els.toggleEng) return;
-  els.engPanel.hidden = !open;
-  els.toggleEng.setAttribute("aria-expanded", open ? "true" : "false");
+  if (open) {
+    setAdvancedOpen(true);
+    setDrawerOpen(true, "eng");
+  } else if (!els.drawer?.hidden && els.engPanel && !els.engPanel.hidden) {
+    setDrawerOpen(false);
+  }
 }
 
 els.toggleHelp?.addEventListener("click", () => {
-  const isOpen = !els.helpPanel?.hidden;
-  setHelpPanelOpen(!isOpen);
+  const helpVisible = Boolean(els.drawer && !els.drawer.hidden && els.helpPanel && !els.helpPanel.hidden);
+  setHelpPanelOpen(!helpVisible);
 });
 
 els.toggleEng?.addEventListener("click", () => {
-  const isOpen = !els.engPanel?.hidden;
-  setEngPanelOpen(!isOpen);
+  const engVisible = Boolean(els.drawer && !els.drawer.hidden && els.engPanel && !els.engPanel.hidden);
+  setEngPanelOpen(!engVisible);
 });
+
+els.toggleAdvanced?.addEventListener("click", () => {
+  const isOpen = !els.advancedPanel?.hidden;
+  setAdvancedOpen(!isOpen);
+});
+
+els.tabHelp?.addEventListener("click", () => setDrawerOpen(true, "help"));
+els.tabEng?.addEventListener("click", () => setDrawerOpen(true, "eng"));
 
 const datasets = config.gibs.datasets;
 let datasetId = config.gibs.defaultDatasetId;
-const fallbackDatasetId = config.gibs.fallbackDatasetId || "viirs_night_global";
 
 function getDataset() {
   return datasets[datasetId] || datasets[config.gibs.defaultDatasetId];
 }
 
-function setDatasetChoice(nextId) {
-  if (!datasets[nextId]) return false;
-  datasetId = nextId;
-  if (els.dataset) els.dataset.value = nextId;
-  return true;
-}
-
-function isoTimeForDataset(ds, dateObj) {
-  return ds.cadence === "daily" ? formatDateUTC(dateObj) : formatTimestampUTC(dateObj);
-}
-
-function currentDefaultTimeForDataset(ds) {
-  const now = new Date();
-  if (ds.cadence === "daily") {
-    // Default to "yesterday" UTC to avoid partial same-day coverage.
-    return addDaysUTC(
-      new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0)),
-      -1
-    );
-  }
-  // For 10-min cadence, stay a bit behind "now" and snap to the cadence step.
-  return floorToStepMinutesUTC(addMinutesUTC(now, -60), 10);
-}
-
-function syncControlsFromCurrent(ds, current) {
-  // High-res TiTiler layer is effectively "static" until we wire scene selection.
-  if (ds.cadence === "static" || ds.type === "titiler_cog") {
-    if (els.timeWrap) els.timeWrap.hidden = true;
-    if (els.date) els.date.disabled = true;
-    if (els.time) els.time.disabled = true;
-    if (els.prev) els.prev.disabled = true;
-    if (els.next) els.next.disabled = true;
-    if (els.play) els.play.disabled = true;
-    return;
-  }
-
-  if (els.date) els.date.disabled = false;
-  if (els.time) els.time.disabled = false;
-  if (els.prev) els.prev.disabled = false;
-  if (els.next) els.next.disabled = false;
-  if (els.play) els.play.disabled = false;
-  if (els.date) els.date.value = formatDateUTC(current);
-  if (ds.cadence === "daily") {
-    if (els.timeWrap) els.timeWrap.hidden = true;
-  } else {
-    if (els.timeWrap) els.timeWrap.hidden = false;
-    if (els.time) els.time.value = formatTimeHHMMUTC(current);
-  }
-}
-
-function ensureDatasetSelect() {
-  if (!els.dataset) return;
-  els.dataset.innerHTML = "";
-  for (const [id, ds] of Object.entries(datasets)) {
-    const opt = document.createElement("option");
-    opt.value = id;
-    opt.textContent = ds.label;
-    els.dataset.appendChild(opt);
-  }
-  els.dataset.value = datasetId;
-}
-
-ensureDatasetSelect();
-
-let current = currentDefaultTimeForDataset(getDataset());
-let playing = false;
-let timer = null;
-
-const map = L.map("map", { worldCopyJump: true });
+const map = L.map("map", { maxBoundsViscosity: 1.0, minZoom: 9, worldCopyJump: false });
 
 const mapShell = document.getElementById("map-shell");
 const mapLoadingEl = document.getElementById("map-loading");
@@ -320,15 +317,56 @@ function setMapLoading(on) {
   if (mapLoadingEl) mapLoadingEl.setAttribute("aria-hidden", on ? "false" : "true");
 }
 
-// Illinois-only focus (don’t let the map drift to global view).
-const IL_BOUNDS = L.latLngBounds(
-  [36.97, -91.52], // SW
-  [42.51, -87.0] // NE
-);
-map.setMaxBounds(IL_BOUNDS);
-map.on("drag", () => {
-  map.panInsideBounds(IL_BOUNDS, { animate: false });
-});
+const FALLBACK_CHICAGO_AOI = {
+  west: -88.38619718818079,
+  south: 41.503652247625865,
+  east: -87.45465485643633,
+  north: 42.43690163419079,
+};
+
+function boundsFromAoi(aoi) {
+  if (!aoi || !Number.isFinite(aoi.south)) return null;
+  const raw = L.latLngBounds(
+    [aoi.south, aoi.west],
+    [aoi.north, aoi.east]
+  );
+  return raw.pad(0.08);
+}
+
+function aoiBoxChanged(prev, next) {
+  if (!prev || !next) return true;
+  const eps = 1e-4;
+  return (
+    Math.abs(prev.getSouth() - next.getSouth()) > eps ||
+    Math.abs(prev.getWest() - next.getWest()) > eps ||
+    Math.abs(prev.getNorth() - next.getNorth()) > eps ||
+    Math.abs(prev.getEast() - next.getEast()) > eps
+  );
+}
+
+function applyChicagoMapClampFromAoi(aoi) {
+  const box = boundsFromAoi(aoi);
+  if (!box) return null;
+  map.setMinZoom(9);
+  // No extra pixel padding: that view sits outside maxBounds and viscosity 1.0
+  // bounces the camera left/right on load. boundsFromAoi already pads 8%.
+  map.fitBounds(box, { maxZoom: 10, animate: false });
+  map.setMaxBounds(box);
+  return box;
+}
+
+async function applyChicagoMapClamp(appliedBox) {
+  let aoi = null;
+  try {
+    aoi = await fetchJson(config.aoiUrl || "../data/chicago_dc_aoi.json");
+  } catch (e) {
+    console.warn("Chicago AOI JSON missing; using default cluster box", e);
+    aoi = FALLBACK_CHICAGO_AOI;
+  }
+  const next = boundsFromAoi(aoi);
+  if (!next || !aoiBoxChanged(appliedBox, next)) return appliedBox;
+  return applyChicagoMapClampFromAoi(aoi);
+}
 
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 19,
@@ -337,11 +375,54 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
 }).addTo(map);
 
 const ds0 = getDataset();
-map.setView(ds0.defaultView.center, ds0.defaultView.zoom);
-syncControlsFromCurrent(ds0, current);
+let chicagoClampBox = applyChicagoMapClampFromAoi(FALLBACK_CHICAGO_AOI);
+applyChicagoMapClamp(chicagoClampBox)
+  .then((box) => {
+    if (box) chicagoClampBox = box;
+  })
+  .catch((e) => console.warn("Map clamp failed", e));
+window.setTimeout(() => {
+  map.invalidateSize({ animate: false, pan: false });
+  if (chicagoClampBox) {
+    map.fitBounds(chicagoClampBox, { maxZoom: 10, animate: false });
+    map.setMaxBounds(chicagoClampBox);
+  }
+}, 0);
+window.addEventListener("resize", () => map.invalidateSize({ animate: false, pan: false }));
 
 let baseLayer = null;
 let baseLayerLoadTimer = null;
+
+function attachThermalLoadHandlers(layer, { doneMsg }) {
+  let settled = false;
+  let tileErrors = 0;
+  const finish = (statusMsg) => {
+    if (settled) return;
+    settled = true;
+    if (baseLayerLoadTimer) {
+      window.clearTimeout(baseLayerLoadTimer);
+      baseLayerLoadTimer = null;
+    }
+    setMapLoading(false);
+    setStatus(statusMsg);
+  };
+  layer.on("tileerror", (e) => {
+    tileErrors += 1;
+    console.warn("tileerror", { coords: e?.coords ?? null, url: e?.tile?.src ?? null });
+  });
+  layer.once("load", () => {
+    showReadyStatus();
+    if (tileErrors) {
+      finish(`${snapshotStatusText()}; some tiles are missing (coverage or server).`);
+      return;
+    }
+    finish(doneMsg);
+  });
+  baseLayerLoadTimer = window.setTimeout(() => {
+    if (settled) return;
+    setStatus("Still rendering temperature tiles…");
+  }, 15000);
+}
 
 async function setBaseLayerForDataset(ds) {
   setMapLoading(true);
@@ -351,81 +432,38 @@ async function setBaseLayerForDataset(ds) {
   }
   try {
     if (baseLayer) map.removeLayer(baseLayer);
-    if (ds.type === "titiler_cog") {
-      setStatus("Loading ECOSTRESS high‑res tiles…");
-      baseLayer = await makeTitilerLayer(ds);
-      baseLayer.addTo(map);
-      let settled = false;
-      const finish = () => {
-        if (settled) return;
-        settled = true;
-        if (baseLayerLoadTimer) {
-          window.clearTimeout(baseLayerLoadTimer);
-          baseLayerLoadTimer = null;
-        }
-        setMapLoading(false);
-        setStatus("ECOSTRESS high‑res tiles loaded.");
-      };
-      baseLayerLoadTimer = window.setTimeout(finish, 15000);
-      baseLayer.once("load", finish);
-      return;
-    }
-
-    setStatus("Loading GIBS thermal tiles…");
-    baseLayer = new GibsTimeLayer({
-      urlTemplate: config.gibs.urlTemplate,
-      layerId: ds.layer,
-      tileMatrixSet: ds.tileMatrixSet,
-      time: isoTimeForDataset(ds, current),
-      maxZoom: ds.maxZoom ?? 7,
-      service: ds.service ?? "best",
-    });
+    setStatus("Rendering ECOSTRESS tiles…");
+    baseLayer = await makeTitilerLayer(ds);
     baseLayer.addTo(map);
-    baseLayer.on("tileerror", (e) => {
-      console.warn("GIBS tileerror", { coords: e?.coords ?? null, url: e?.tile?.src ?? null });
-    });
-    let settled = false;
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      if (baseLayerLoadTimer) {
-        window.clearTimeout(baseLayerLoadTimer);
-        baseLayerLoadTimer = null;
-      }
-      setMapLoading(false);
-      if (typeof updateTime === "function") {
-        updateTime(current, { keepPlaying: true });
-      }
-    };
-    baseLayerLoadTimer = window.setTimeout(finish, 15000);
-    baseLayer.once("load", finish);
+    attachThermalLoadHandlers(baseLayer, { doneMsg: snapshotStatusText() });
+    updateInsightPanel();
   } catch (e) {
     setMapLoading(false);
     throw e;
   }
 }
 
-async function switchToFallback(reason) {
-  if (!fallbackDatasetId || fallbackDatasetId === datasetId || !datasets[fallbackDatasetId]) {
-    setStatus(reason);
-    return;
+function markThermalUnavailable(reason) {
+  if (baseLayer) {
+    map.removeLayer(baseLayer);
+    baseLayer = null;
   }
-  const fallback = datasets[fallbackDatasetId];
-  setDatasetChoice(fallbackDatasetId);
-  current = currentDefaultTimeForDataset(fallback);
-  syncControlsFromCurrent(fallback, current);
-  map.setView(fallback.defaultView.center, fallback.defaultView.zoom);
-  await setBaseLayerForDataset(fallback);
-  setStatus(`${reason} Falling back to ${fallback.label}.`);
+  setMapLoading(false);
+  const msg = reason
+    ? `${reason} Temperature tiles unavailable.`
+    : "Temperature tiles unavailable.";
+  setStatus(msg);
+  setTileBanner(
+    "Showing street map only. High-res ECOSTRESS tiles failed (TiTiler may be warming up on Render). Site overlays still work."
+  );
 }
+
+wakeTitiler();
 
 // init base layer
 setBaseLayerForDataset(ds0).catch((e) => {
   console.warn("Base layer init failed", e);
-  switchToFallback(`High-res layer unavailable (${e?.message ?? e}).`).catch((err) => {
-    console.warn("Fallback layer init failed", err);
-    setStatus(String(err?.message ?? err));
-  });
+  markThermalUnavailable(`High-res layer unavailable (${e?.message ?? e}).`);
 });
 
 // --- AOI risk overlay (GeoJSON) ---
@@ -439,7 +477,7 @@ const effectCfg = config.overlays?.dcEffect ?? null;
 let effectLayer = null;
 let effectData = null;
 let siteFilterValue = "all";
-let bufferFilterValue = "all";
+let bufferFilterValue = "500";
 
 function siteKeyFromProps(p = {}) {
   const candidate = p.site_id ?? p.site_name ?? p.name ?? null;
@@ -450,10 +488,14 @@ function siteKeyFromProps(p = {}) {
 
 function bufferKeyFromProps(p = {}) {
   const raw = p.buffer_m;
-  if (raw === null || raw === undefined || raw === "") return null;
-  const n = Number(raw);
-  if (!Number.isFinite(n)) return null;
-  return String(Math.round(n));
+  if (raw !== null && raw !== undefined && raw !== "") {
+    const n = Number(raw);
+    if (Number.isFinite(n)) return String(Math.round(n));
+  }
+  const aid = String(p.aoi_id ?? "");
+  const m = aid.match(/buf_(\d+)m/i);
+  if (m) return m[1];
+  return null;
 }
 
 function featurePassesFilters(p = {}, { requireBuffer = false } = {}) {
@@ -518,6 +560,9 @@ function rebuildFilterControls() {
     if ([...bufferKeys].includes(prev)) {
       els.bufferFilter.value = prev;
       bufferFilterValue = prev;
+    } else if (bufferKeys.has("500")) {
+      els.bufferFilter.value = "500";
+      bufferFilterValue = "500";
     } else {
       els.bufferFilter.value = "all";
       bufferFilterValue = "all";
@@ -562,8 +607,19 @@ function currentExportContext() {
 function updateInsightPanel() {
   const riskFeatures = getFilteredFeatures(riskData, { requireBuffer: false });
   const effectFeatures = getFilteredFeatures(effectData, { requireBuffer: true });
-  const visibleAois = riskFeatures.length;
+  const dcFeatures = getFilteredFeatures(dcData, { requireBuffer: false });
+  const visibleAois = els.overlayRisk?.checked
+    ? riskFeatures.length
+    : els.overlayEffect?.checked
+      ? effectFeatures.length
+      : dcFeatures.length;
   setMetric(els.metricVisibleAoIs, String(visibleAois || 0));
+
+  if (snapshotCoverage && Number.isFinite(snapshotCoverage.n) && Number.isFinite(snapshotCoverage.m)) {
+    setMetric(els.metricCoverage, `${snapshotCoverage.n} of ${snapshotCoverage.m} sites`);
+  } else {
+    setMetric(els.metricCoverage, "n/a");
+  }
 
   const deltas = effectFeatures
     .map((f) => Number(f?.properties?.delta_mean_c))
@@ -578,6 +634,7 @@ function updateInsightPanel() {
     .filter((v) => Number.isFinite(v));
   const maxRisk = risks.length ? Math.max(...risks) : Number.NaN;
   setMetric(els.metricMaxRisk, Number.isFinite(maxRisk) ? fmtNum(maxRisk, 1) : "n/a");
+  if (els.riskMetricCard) els.riskMetricCard.hidden = !els.overlayRisk?.checked;
   updateEngineeringPanel();
 }
 
@@ -586,6 +643,11 @@ function updateEngineeringPanel() {
     els.engApiHealth.href = joinUrl(config.titilerBaseUrl, "/");
   }
   if (!els.engRefreshTs) return;
+
+  if (snapshotTime) {
+    els.engRefreshTs.textContent = snapshotTime;
+    return;
+  }
 
   const candidates = [];
   for (const f of riskData?.features ?? []) {
@@ -655,10 +717,10 @@ function riskStyle(feature) {
 
 async function fetchRiskData() {
   if (!riskCfg?.url) return null;
-  let res = await fetch(riskCfg.url, { cache: "no-store" });
+  let res = await fetch(riskCfg.url);
   // If latest isn't present (common when outputs are gitignored), fall back to a sample file.
   if (!res.ok && String(riskCfg.url).includes("aoi_risk_latest.geojson")) {
-    res = await fetch("../data/aoi_risk_sample.geojson", { cache: "no-store" });
+    res = await fetch("../data/aoi_risk_sample.geojson");
   }
   if (!res.ok) throw new Error(`Overlay fetch failed: ${res.status} ${res.statusText}`);
   const gj = await res.json();
@@ -746,7 +808,7 @@ function dcPointStyle() {
 
 async function loadDataCentersLayer() {
   if (!dcCfg?.url) return null;
-  const res = await fetch(dcCfg.url, { cache: "no-store" });
+  const res = await fetch(dcCfg.url);
   if (!res.ok) throw new Error(`Overlay fetch failed: ${res.status} ${res.statusText}`);
   return await res.json();
 }
@@ -766,7 +828,8 @@ function buildDataCentersLayer(gj) {
           ${op ? `<div style="opacity:.85">${op}</div>` : ""}
           ${addr ? `<div style="opacity:.75;margin-top:6px">${addr}</div>` : ""}
           <div style="opacity:.75;margin-top:8px">
-            Tip: the colored <b>buffer polygons</b> show ΔLST vs controls. Click a polygon for details.
+            This is a <b>study location</b> from the Chicago data-center list. Colored buffers
+            show ΔLST vs matched non–data-center controls (observational). Source: DataCenterMap.
           </div>
         </div>`
       );
@@ -802,7 +865,7 @@ function effectStyle(feature) {
 
 async function loadEffectLayer() {
   if (!effectCfg?.url) return null;
-  const res = await fetch(effectCfg.url, { cache: "no-store" });
+  const res = await fetch(effectCfg.url);
   if (!res.ok) throw new Error(`Overlay fetch failed: ${res.status} ${res.statusText}`);
   return await res.json();
 }
@@ -826,8 +889,8 @@ function buildEffectLayer(gj) {
           <div style="opacity:.75;margin-top:6px"><b>Buffer</b>: ${p.buffer_m ?? "n/a"} m</div>
           <div style="opacity:.75"><b>Span</b>: ${p.first_dt ?? "n/a"} → ${p.last_dt ?? "n/a"}</div>
           <div style="opacity:.75;margin-top:6px">
-            This aggregates per‑timestamp DC−control differences across all available dates
-            (controls are timestamp-matched).
+            Observational DC−control comparison at the same timestamps (not a causal claim).
+            Default map view uses the 500 m buffer.
           </div>
           <hr style="border:0;border-top:1px solid rgba(255,255,255,.15);margin:8px 0" />
           <div><b>Opening date (if known)</b>: ${p.opening_date ?? "n/a"}</div>
@@ -837,9 +900,11 @@ function buildEffectLayer(gj) {
           <div><b>Post-open window</b>: ${(p.post_open_first_dt ?? "n/a")} → ${(p.post_open_last_dt ?? "n/a")}</div>
           <div><b>Pre-open Δ mean</b>: ${fmtNum(p.delta_pre_open_mean_c, 2)} °C</div>
           <div><b>Post-open Δ mean</b>: ${fmtNum(p.delta_post_open_mean_c, 2)} °C</div>
-          <div style="opacity:.75;margin-top:6px">
-            If opening date is n/a, the site metadata lacks opening year.
-          </div>
+          ${
+            p.opening_date
+              ? ""
+              : `<div style="opacity:.75;margin-top:6px">If opening date is n/a, the site metadata lacks a verified opening cite.</div>`
+          }
         </div>`
       );
     },
@@ -847,8 +912,10 @@ function buildEffectLayer(gj) {
   return layer;
 }
 
+let riskLegend = null;
+
 function ensureLegend() {
-  if (!riskCfg) return;
+  if (riskLegend || !riskCfg) return;
   // Use top-right so it can't fall off-screen on shorter viewports.
   const legend = L.control({ position: "topright" });
   legend.onAdd = () => {
@@ -882,12 +949,23 @@ function ensureLegend() {
     return div;
   };
   legend.addTo(map);
+  riskLegend = legend;
 }
 
-ensureLegend();
+function setRiskLegendVisible(on) {
+  if (!on) {
+    if (riskLegend) {
+      map.removeControl(riskLegend);
+      riskLegend = null;
+    }
+    return;
+  }
+  ensureLegend();
+}
 
 async function syncRiskOverlay() {
   const enabled = Boolean(els.overlayRisk?.checked);
+  setRiskLegendVisible(enabled);
   if (!enabled) {
     if (riskLayer) map.removeLayer(riskLayer);
     return;
@@ -970,100 +1048,6 @@ els.overlayEffect?.addEventListener("change", () => {
   syncEffectOverlay();
 });
 
-function stop() {
-  playing = false;
-  if (els.play) els.play.textContent = "Play";
-  if (timer) window.clearInterval(timer);
-  timer = null;
-}
-
-function updateTime(dateObj, { keepPlaying = true } = {}) {
-  current = dateObj;
-  const ds = getDataset();
-  const iso = isoTimeForDataset(ds, current);
-  syncControlsFromCurrent(ds, current);
-  if (baseLayer instanceof GibsTimeLayer) {
-    baseLayer.setTime(iso);
-    setStatus(`Layer: ${ds.layer} • Time: ${iso}`);
-  } else {
-    setStatus(`Layer: ${ds.label}`);
-  }
-  if (!keepPlaying) stop();
-}
-
-els.dataset?.addEventListener("change", () => {
-  datasetId = els.dataset.value;
-  const ds = getDataset();
-  current = currentDefaultTimeForDataset(ds);
-  syncControlsFromCurrent(ds, current);
-  setBaseLayerForDataset(ds).catch((e) => {
-    console.warn("Base layer switch failed", e);
-    if (ds.type === "titiler_cog") {
-      switchToFallback(`High-res layer unavailable (${e?.message ?? e}).`).catch((err) => {
-        console.warn("Fallback layer switch failed", err);
-        setStatus(String(err?.message ?? err));
-      });
-      return;
-    }
-    setStatus(String(e?.message ?? e));
-  });
-  map.setView(ds.defaultView.center, ds.defaultView.zoom);
-  updateTime(current, { keepPlaying: false });
-});
-
-els.date?.addEventListener("change", () => {
-  const d = parseDateInput(els.date.value);
-  if (!d) return;
-  const ds = getDataset();
-  if (ds.cadence === "daily") {
-    updateTime(d, { keepPlaying: false });
-    return;
-  }
-  const t = parseTimeInput(els.time?.value);
-  const merged = new Date(d.getTime());
-  merged.setUTCHours(t?.h ?? current.getUTCHours(), t?.m ?? current.getUTCMinutes(), 0, 0);
-
-  updateTime(floorToStepMinutesUTC(merged, 10), { keepPlaying: false });
-});
-
-els.time?.addEventListener("change", () => {
-  const ds = getDataset();
-  if (ds.cadence === "daily") return;
-  const t = parseTimeInput(els.time.value);
-  if (!t) return;
-  const merged = new Date(current.getTime());
-  merged.setUTCHours(t.h, t.m, 0, 0);
-
-  updateTime(floorToStepMinutesUTC(merged, 10), { keepPlaying: false });
-});
-
-els.prev?.addEventListener("click", () => {
-  const ds = getDataset();
-  if (ds.cadence === "daily") updateTime(addDaysUTC(current, -1));
-  else updateTime(addMinutesUTC(current, -10));
-});
-
-els.next?.addEventListener("click", () => {
-  const ds = getDataset();
-  if (ds.cadence === "daily") updateTime(addDaysUTC(current, 1));
-  else updateTime(addMinutesUTC(current, 10));
-});
-
-function start() {
-  playing = true;
-  if (els.play) els.play.textContent = "Pause";
-  timer = window.setInterval(() => {
-    const ds = getDataset();
-    if (ds.cadence === "daily") updateTime(addDaysUTC(current, 1));
-    else updateTime(addMinutesUTC(current, 10));
-  }, 700);
-}
-
-els.play?.addEventListener("click", () => {
-  if (playing) stop();
-  else start();
-});
-
 async function applySiteAndBufferFilters() {
   const nextSite = els.siteFilter?.value ?? "all";
   const nextBuffer = els.bufferFilter?.value ?? "all";
@@ -1102,12 +1086,46 @@ els.exportCsv?.addEventListener("click", () => {
   triggerDownload(`${ctx.name}.csv`, toCsv(ctx.features), "text/csv;charset=utf-8");
 });
 
+function runTourIfRequested() {
+  if (!wantsTour()) return;
+  if (els.overlayDC && !els.overlayDC.checked) {
+    els.overlayDC.checked = true;
+    syncDcOverlay();
+  }
+  if (els.overlayEffect && !els.overlayEffect.checked) {
+    els.overlayEffect.checked = true;
+    syncEffectOverlay();
+  }
+  setDrawerOpen(true, "help");
+  map.setView([TOUR_SITE.lat, TOUR_SITE.lon], TOUR_SITE.zoom, { animate: false });
+  setStatus(`Tour: ${TOUR_SITE.name} — click a Δ polygon for mean °C vs matched controls.`);
+}
+
 // Init
-setHelpPanelOpen(true);
-setEngPanelOpen(false);
+setDrawerOpen(false);
+setAdvancedOpen(false);
 updateEngineeringPanel();
-updateTime(current, { keepPlaying: false });
-syncRiskOverlay();
-syncDcOverlay();
-syncEffectOverlay();
+fetchJson(config.coverageUrl || "../data/coverage_latest.json")
+  .then((cov) => {
+    const snap = cov?.snapshot || cov;
+    const n = Number(snap?.n_dc_with_pixels);
+    const m = Number(snap?.n_dc_sites || cov?.n_dc_sites);
+    const nights = Number(cov?.n_study_nights);
+    const medianObs = Number(cov?.median_n_obs);
+    if (Number.isFinite(nights)) analysisCoverage.nNights = nights;
+    if (Number.isFinite(medianObs)) analysisCoverage.medianObs = medianObs;
+    if (snap?.scene_time) {
+      snapshotTime = snap.scene_time;
+      updateColorbarDate();
+    }
+    if (!snapshotCoverage && Number.isFinite(n) && Number.isFinite(m) && m > 0) {
+      snapshotCoverage = { n, m };
+      updateInsightPanel();
+    }
+    if (thermalReady) showReadyStatus();
+  })
+  .catch(() => {});
+Promise.all([syncDcOverlay(), syncRiskOverlay(), syncEffectOverlay()]).then(() => {
+  runTourIfRequested();
+});
 

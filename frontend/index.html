@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Live Night Heat</title>
+    <title>Chicago DC Night Heat</title>
 
     <!-- Use CDN so the app works when served from this folder -->
     <link
@@ -18,37 +18,74 @@
   <body>
     <header class="topbar">
       <div class="topbar__left">
-        <div class="title">Live Night Heat</div>
-        <div class="subtitle">Illinois ECOSTRESS LST (70m) + data center overlays</div>
+        <div class="title">Chicago DC Night Heat</div>
+        <div class="subtitle">
+          183 listed data centers (113 mapped) vs matched controls · ECOSTRESS LST
+        </div>
+        <p class="study-context">
+          We mapped Chicago-area data centers from DataCenterMap, then compared nighttime land-surface
+          temperature in buffers around each site with matched non–data-center controls. Observational
+          comparison, not a causal claim. Mean Δ at 500 m ≈ +2.4 °C (July 2025 sample).
+        </p>
       </div>
 
-      <div class="topbar__right">
+      <div class="topbar__primary">
         <button id="toggleHelp" class="help-btn" type="button" aria-expanded="false">
           How this works
         </button>
-        <button id="toggleEng" class="help-btn" type="button" aria-expanded="false">
-          Engineering
+        <button id="toggleAdvanced" class="help-btn" type="button" aria-expanded="false">
+          Advanced
         </button>
-        <label class="control">
-          <span>Date (UTC)</span>
-          <input id="date" type="date" />
+        <a
+          class="help-btn help-btn--link"
+          href="https://github.com/charlotteprevost/chicago_lst"
+          target="_blank"
+          rel="noopener noreferrer"
+          >GitHub</a
+        >
+        <label class="control control--inline">
+          <span>Overlays</span>
+          <label class="check">
+            <input id="overlayDC" type="checkbox" checked />
+            <span>Data center sites (n=113)</span>
+            <span
+              class="info-tip"
+              tabindex="0"
+              aria-label="What are data center sites?"
+              data-tip="Study locations: Chicago-area data centers from DataCenterMap (183 listed, 113 geocoded onto the map). These are the sites we compare to matched controls."
+              >?</span
+            >
+          </label>
+          <label class="check">
+            <input id="overlayEffect" type="checkbox" checked />
+            <span>Warmer than control (Δ°C)</span>
+            <span
+              class="info-tip"
+              tabindex="0"
+              aria-label="What is warmer than control?"
+              data-tip="How much warmer or cooler each data-center buffer is than matched nearby non–data-center areas at the same timestamps. Default view is 500 m."
+              >?</span
+            >
+          </label>
+          <label class="check">
+            <input id="overlayRisk" type="checkbox" />
+            <span>Heat context score</span>
+            <span
+              class="info-tip"
+              tabindex="0"
+              aria-label="What is heat context score?"
+              data-tip="Optional 0–100 score from recent heat: anomaly vs a local baseline, how often nights run hot, and the warming trend. Off by default so the DC vs control story stays first."
+              >?</span
+            >
+          </label>
         </label>
-        <label id="timeWrap" class="control">
-          <span>Time (UTC)</span>
-          <input id="time" type="time" step="600" />
-        </label>
-        <div class="control control--inline">
-          <span>Timeline</span>
-          <div class="inline-buttons">
-            <button id="prev" type="button">Prev</button>
-            <button id="play" type="button">Play</button>
-            <button id="next" type="button">Next</button>
-          </div>
-        </div>
-        <label class="control">
-          <span>Dataset</span>
-          <select id="dataset"></select>
-        </label>
+        <span id="status" class="status"></span>
+      </div>
+
+      <div id="advancedPanel" class="topbar__advanced" hidden>
+        <p class="advanced-note">
+          Filters and exports. The background is one ECOSTRESS snapshot (not a live timeline).
+        </p>
         <label class="control">
           <span>AOI / Site</span>
           <select id="siteFilter">
@@ -61,108 +98,103 @@
             <option value="all">All buffers</option>
           </select>
         </label>
-        <label class="control control--inline">
-          <span>Overlays</span>
-          <label class="check">
-            <input id="overlayRisk" type="checkbox" checked />
-            <span>AOI risk</span>
-            <span
-              class="info-tip"
-              tabindex="0"
-              aria-label="What is AOI risk?"
-              data-tip="AOI risk summarizes recent heat behavior in each buffer using anomaly, hot-night frequency, and trend."
-              >?</span
-            >
-          </label>
-          <label class="check">
-            <input id="overlayDC" type="checkbox" checked />
-            <span>Data centers</span>
-            <span
-              class="info-tip"
-              tabindex="0"
-              aria-label="What are data center points?"
-              data-tip="These points are known data center locations from the Chicago list used in this analysis."
-              >?</span
-            >
-          </label>
-          <label class="check">
-            <input id="overlayEffect" type="checkbox" checked />
-            <span>DC Δ vs controls</span>
-            <span
-              class="info-tip"
-              tabindex="0"
-              aria-label="What is DC delta versus controls?"
-              data-tip="DC Δ compares each data-center buffer temperature against matched non-data-center control buffers at the same timestamps."
-              >?</span
-            >
-          </label>
-        </label>
-        <span id="status" class="status"></span>
+        <button id="toggleEng" class="help-btn" type="button" aria-expanded="false">
+          Engineering
+        </button>
+        <button id="exportCsv" type="button">Export CSV</button>
+        <button id="exportGeojson" type="button">Export GeoJSON</button>
       </div>
     </header>
 
     <main class="layout">
-      <aside id="helpPanel" class="help-panel" hidden>
-        <h3>Step-by-step guide (plain English)</h3>
-        <ol>
-          <li>
-            <b>Background map (temperature):</b> the app shows satellite-derived night surface temperature over Illinois.
-            High-res ECOSTRESS is used when available; otherwise it falls back to a global thermal proxy.
-          </li>
-          <li>
-            <b>Data center points:</b> each point is a known data center location from your Chicago list.
-          </li>
-          <li>
-            <b>AOI risk overlay:</b> each polygon buffer has a risk score from recent heat behavior
-            (anomaly, hot-night frequency, and trend).
-          </li>
-          <li>
-            <b>DC effect overlay (DC Δ vs controls):</b> compares each data-center buffer temperature
-            against matched non-data-center control buffers at the same timestamps.
-          </li>
-          <li>
-            <b>Before vs after opening:</b> where opening-year metadata exists, popup stats show
-            pre-open and post-open windows to help interpret possible change after go-live.
-          </li>
-          <li>
-            <b>Why coverage can look one-sided:</b> ECOSTRESS is swath-based. A single scene may only cover
-            part of Illinois; full-state appearance improves when latest same-timestamp tiles are mosaicked.
-          </li>
-        </ol>
+      <aside id="drawer" class="drawer" hidden>
+        <div class="drawer__tabs" role="tablist" aria-label="Guide and engineering">
+          <button id="tabHelp" class="drawer__tab" type="button" role="tab" aria-selected="true">
+            How this works
+          </button>
+          <button id="tabEng" class="drawer__tab" type="button" role="tab" aria-selected="false">
+            Engineering
+          </button>
+        </div>
+        <div id="helpPanel" class="help-panel drawer__pane" role="tabpanel">
+          <h3>Study design</h3>
+          <p>
+            <b>Question:</b> are neighborhoods around Chicago data centers hotter at night than
+            comparable nearby areas?
+          </p>
+          <ol>
+            <li>
+              <b>Why these sites:</b> 183 Chicago-area data centers from DataCenterMap; 113 geocoded
+              points are the study locations (infrastructure + environmental comparison).
+            </li>
+            <li>
+              <b>Nighttime LST background:</b> one ECOSTRESS ISS pass (~70 m), mosaicked from
+              same-timestamp tiles and clipped to the cluster. The pipeline processed 22 nights; this
+              image is the max-coverage pass (2025-07-31). Not a live feed.
+            </li>
+            <li>
+              <b>Warmer than control (Δ°C):</b> each data-center buffer vs matched non–data-center
+              controls at the same timestamps. Positive means the site ran warmer. Default 500 m.
+            </li>
+            <li>
+              <b>Click a site or polygon:</b> mean Δ°C, observation count, and an observational caveat.
+            </li>
+            <li>
+              <b>Heat context score:</b> optional; off by default. Opening-date fields appear in
+              popups only when a verified go-live exists.
+            </li>
+          </ol>
+        </div>
+        <div id="engPanel" class="eng-panel drawer__pane" hidden role="tabpanel">
+          <h3>Engineering notes</h3>
+          <pre class="eng-diagram">Frontend (Pages) -> GeoJSON data + TiTiler (Render) -> COG
+analysis/*.py -----> data/*.geojson + metadata JSON</pre>
+          <div class="eng-row"><b>Data refresh:</b> <span id="engRefreshTs">n/a</span></div>
+          <div class="eng-row">
+            <b>QA/QC:</b> Kelvin to Celsius, clear-sky and non-water masking, QC class filtering.
+          </div>
+          <div class="eng-row">
+            <b>Tiles:</b> static XYZ first; TiTiler on Render if the pyramid is missing. Free-tier
+            cold start can take ~30s — the banner says so if tiles fail.
+          </div>
+          <div class="eng-links">
+            <a id="engApiHealth" href="#" target="_blank" rel="noopener noreferrer">API health</a>
+            <a
+              id="engTestsLink"
+              href="https://github.com/charlotteprevost/chicago_lst/actions"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Tests / CI</a
+            >
+            <a
+              href="https://github.com/charlotteprevost/chicago_lst"
+              target="_blank"
+              rel="noopener noreferrer"
+              >GitHub repo</a
+            >
+          </div>
+        </div>
       </aside>
       <aside id="insightPanel" class="insight-panel">
-        <h3>Quick insight</h3>
+        <h3>Summary</h3>
         <div class="insight-grid">
+          <div class="insight-card insight-card--lead">
+            <div class="insight-label">Mean DC Δ (°C)</div>
+            <div id="metricMeanDelta" class="insight-value">n/a</div>
+            <div class="insight-hint">500 m default · observational</div>
+          </div>
+          <div class="insight-card">
+            <div class="insight-label">Snapshot coverage</div>
+            <div id="metricCoverage" class="insight-value">n/a</div>
+          </div>
           <div class="insight-card">
             <div class="insight-label">Visible AOIs</div>
             <div id="metricVisibleAoIs" class="insight-value">n/a</div>
           </div>
-          <div class="insight-card">
-            <div class="insight-label">Mean DC Δ (°C)</div>
-            <div id="metricMeanDelta" class="insight-value">n/a</div>
-          </div>
-          <div class="insight-card">
-            <div class="insight-label">Max risk score</div>
+          <div id="riskMetricCard" class="insight-card" hidden>
+            <div class="insight-label">Max heat-context score</div>
             <div id="metricMaxRisk" class="insight-value">n/a</div>
           </div>
-        </div>
-        <div class="insight-actions">
-          <button id="exportCsv" type="button">Export CSV</button>
-          <button id="exportGeojson" type="button">Export GeoJSON</button>
-        </div>
-      </aside>
-      <aside id="engPanel" class="eng-panel" hidden>
-        <h3>Engineering notes</h3>
-        <pre class="eng-diagram">Frontend (Pages) -> GeoJSON data + TiTiler (Render) -> COG
-analysis/*.py -----> data/*.geojson + metadata JSON</pre>
-        <div class="eng-row"><b>Data refresh:</b> <span id="engRefreshTs">n/a</span></div>
-        <div class="eng-row">
-          <b>QA/QC:</b> Kelvin->Celsius conversion, clear-sky and non-water masking, QC class filtering.
-        </div>
-        <div class="eng-links">
-          <a id="engApiHealth" href="#" target="_blank" rel="noopener noreferrer">API health</a>
-          <a id="engTestsLink" href="https://github.com/charlotteprevost/chicago_lst/actions" target="_blank" rel="noopener noreferrer">Tests / CI</a>
-          <a href="https://github.com/charlotteprevost/chicago_lst" target="_blank" rel="noopener noreferrer">GitHub repo</a>
         </div>
       </aside>
       <div
@@ -172,10 +204,27 @@ analysis/*.py -----> data/*.geojson + metadata JSON</pre>
         aria-label="Map panel"
       >
         <div id="map" class="map" role="application" aria-label="Interactive map"></div>
+        <div
+          id="tileBanner"
+          class="tile-banner"
+          hidden
+          role="status"
+          aria-live="polite"
+        ></div>
+        <div
+          id="lstColorbar"
+          class="lst-colorbar"
+          aria-label="Land-surface temperature scale, 0 to 45 degrees Celsius"
+        >
+          <div class="lst-colorbar__title">Nighttime LST background (°C)</div>
+          <div class="lst-colorbar__bar" role="img" aria-hidden="true"></div>
+          <div class="lst-colorbar__ticks"><span>0</span><span>45</span></div>
+          <div id="lstColorbarDate" class="lst-colorbar__note">Snapshot date loads with tiles</div>
+        </div>
         <div id="map-loading" class="map-loading" role="status" aria-live="polite" aria-hidden="false">
           <div class="map-loading-card">
             <span class="map-loading-dot" aria-hidden="true"></span>
-            <span class="map-loading-text">Loading thermal basemap and overlays…</span>
+            <span class="map-loading-text">Loading temperature tiles…</span>
           </div>
         </div>
       </div>
@@ -190,4 +239,3 @@ analysis/*.py -----> data/*.geojson + metadata JSON</pre>
     <script type="module" src="main.js"></script>
   </body>
 </html>
-

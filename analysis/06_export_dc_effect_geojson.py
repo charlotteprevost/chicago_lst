@@ -9,6 +9,43 @@ import pandas as pd
 
 from utils_config import load_config
 
+ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_DC_CSV = ROOT / "data" / "chicago_data_centers_183.csv"
+
+
+def load_verified_opening_dates(csv_path: Path) -> pd.DataFrame:
+    """Return name_key + opening_date for rows with verified cites."""
+    rows = pd.read_csv(csv_path)
+    if "went_live_status" not in rows.columns or "went_live_date" not in rows.columns:
+        return pd.DataFrame(columns=["name_key", "opening_date"])
+    status = rows["went_live_status"].astype(str).str.strip().str.lower()
+    out = rows.loc[status == "verified", ["name", "went_live_date"]].copy()
+    out["name_key"] = out["name"].astype(str).str.strip().str.lower()
+    out["opening_date"] = pd.to_datetime(out["went_live_date"], errors="coerce", utc=True)
+    out = out.dropna(subset=["opening_date", "name_key"])
+    out = out[out["name_key"] != ""]
+    return out.drop_duplicates("name_key")[["name_key", "opening_date"]]
+
+
+def apply_verified_opening_dates(
+    df: pd.DataFrame, verified: pd.DataFrame, name_col: str = "site_name"
+) -> pd.DataFrame:
+    """Fill opening_date from verified cites when the column is missing or null."""
+    out = df.copy()
+    if verified.empty or name_col not in out.columns:
+        if "opening_date" not in out.columns:
+            out["opening_date"] = pd.NaT
+        return out
+    mapped = out[name_col].astype(str).str.strip().str.lower().map(
+        verified.set_index("name_key")["opening_date"]
+    )
+    if "opening_date" in out.columns:
+        existing = pd.to_datetime(out["opening_date"], errors="coerce", utc=True)
+        out["opening_date"] = existing.where(existing.notna(), mapped)
+    else:
+        out["opening_date"] = mapped
+    return out
+
 
 def weighted_mean(values: pd.Series, weights: pd.Series) -> float:
     v = pd.to_numeric(values, errors="coerce")
@@ -31,24 +68,42 @@ def main() -> None:
     ap.add_argument("--out", required=True, help="Output GeoJSON path (e.g., ../data/dc_effect_cumulative.geojson)")
     ap.add_argument("--value_col", default="mean", help="Column from timeseries_enriched.csv (default: mean)")
     ap.add_argument("--buffer_m", type=float, default=None, help="Optional: restrict to a single buffer size (meters)")
+    ap.add_argument(
+        "--dc-csv",
+        default=str(DEFAULT_DC_CSV),
+        help="Data-center CSV with verified went_live_date columns.",
+    )
     args = ap.parse_args()
 
     cfg = load_config(args.config)
     out_dir = Path(cfg.outputs_dir)
     ts_enriched = out_dir / "timeseries_enriched.csv"
-    if not ts_enriched.exists():
+    collapsed_usable = out_dir / "collapsed_aoi_dt_usable.csv"
+    if collapsed_usable.exists():
+        src = collapsed_usable
+    elif ts_enriched.exists():
+        src = ts_enriched
+    else:
         raise SystemExit(f"Missing input: {ts_enriched} (run 23_run_il_ecostress_dc_study.py first)")
 
     aois = gpd.read_file(cfg.aoi_path)
     if aois.crs is None:
         aois = aois.set_crs(cfg.aoi_crs_if_missing)
 
-    df = pd.read_csv(ts_enriched)
+    df = pd.read_csv(src)
+    if "is_usable" in df.columns:
+        df = df[df["is_usable"] == True].copy()  # noqa: E712
+    if "count" not in df.columns and "pixels" in df.columns:
+        df["count"] = df["pixels"]
+    if src == collapsed_usable and ts_enriched.exists():
+        extra = pd.read_csv(ts_enriched, usecols=lambda c: c in {"aoi_id", "opening_date", "opening_year"})
+        if "aoi_id" in extra.columns and "opening_date" in extra.columns and "opening_date" not in df.columns:
+            df = df.merge(extra.drop_duplicates("aoi_id"), on="aoi_id", how="left")
     if args.value_col not in df.columns:
-        raise SystemExit(f"Missing column in {ts_enriched.name}: {args.value_col}")
+        raise SystemExit(f"Missing column in {src.name}: {args.value_col}")
     for col in ["aoi_id", "date", "buffer_m", "is_data_center", "count"]:
         if col not in df.columns:
-            raise SystemExit(f"Missing column in {ts_enriched.name}: {col}")
+            raise SystemExit(f"Missing column in {src.name}: {col}")
 
     df["dt"] = pd.to_datetime(df["date"], errors="coerce", utc=True)
     if args.buffer_m is not None:
@@ -79,8 +134,11 @@ def main() -> None:
             return float("nan")
         return float(np.percentile(v, 90))
 
-    # Normalize opening date field if present.
-    if "opening_date" in dc2.columns:
+    # Prefer verified went_live_date from the site CSV when attrs/opening_date is empty.
+    dc_csv = Path(args.dc_csv)
+    if dc_csv.exists() and "site_name" in dc2.columns:
+        dc2 = apply_verified_opening_dates(dc2, load_verified_opening_dates(dc_csv))
+    elif "opening_date" in dc2.columns:
         dc2["opening_date"] = pd.to_datetime(dc2["opening_date"], errors="coerce", utc=True)
     else:
         dc2["opening_date"] = pd.NaT

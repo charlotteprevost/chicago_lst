@@ -1,56 +1,81 @@
-## Chicago Data Centers vs. Land Surface Temperature
+## Chicago DC Night Heat
 
-Interactive map and analysis project about nighttime surface heat and Chicago-area data centers.
+**Question:** Are neighborhoods around Chicago data centers hotter at night than matched nearby areas?
 
-**Live app:** `https://charlotteprevost.github.io/chicago_lst/`
+**Built:** Python ECOSTRESS pipeline (QC, Kelvin→°C, zonal stats) → GeoJSON overlays → Leaflet demo. Optional COG tiles via static XYZ or TiTiler.
+
+**Proof (observational):** Across 113 mapped sites in July 2025, 500 m data-center buffers averaged about **+2.4 °C** vs matched controls (median 10 nights per site). Not a causal claim.
+
+**Stack:** Python, GeoPandas/rasterio, Leaflet, Docker/TiTiler, GitHub Actions, pytest.
+
+**Live app:** `https://charlotteprevost.github.io/chicago_lst/frontend/` · guided tour: add `?tour=1`
+
+The map background is one same-pass ECOSTRESS snapshot (2025-07-31, ~70 m) that covered all 113 geocoded sites from a 183-row DataCenterMap list. Site Δ overlays use the 22-night series.
+
+```mermaid
+flowchart LR
+  analysis[Python ECOSTRESS pipeline]
+  data[GeoJSON + COG/XYZ]
+  pages[Leaflet on GitHub Pages]
+  tiles[TiTiler on Render]
+  analysis --> data
+  data --> pages
+  data --> tiles
+  tiles --> pages
+```
 
 ## Portfolio quick view
 
 ### Screenshots
 
-![Map overview — AOI, data centers, and thermal context](docs/portfolio_screenshots/shot-map-overview.svg)
-![Layers — DC delta vs controls and legend](docs/portfolio_screenshots/shot-layers-delta.svg)
+![Map overview — Chicago DC Night Heat, colorbar, data-center sites](docs/portfolio_screenshots/shot-map-overview.jpg)
+![DC vs control Δ overlay](docs/portfolio_screenshots/shot-layers-delta.jpg)
 
-The files above are **SVG placeholders** (versioned, lightweight). Replace them with real PNG/WebP captures from the live site or local when you want pixel-perfect portfolio shots; keep the same paths or update the links here.
+### 60-second demo
 
-### Demo flow (local)
+| Step | Time | Action | What to highlight |
+|------|------|--------|-------------------|
+| 1 | 5s | Open the [live map](https://charlotteprevost.github.io/chicago_lst/frontend/) | Title **Chicago DC Night Heat**; 183 listed / 113 mapped |
+| 2 | 10s | Read the study blurb + Mean DC Δ | +2.4 °C at 500 m; observational |
+| 3 | 15s | Default layers: sites + warmer-than-control | Click a polygon for Δ°C vs matched controls |
+| 4 | 10s | Optional `?tour=1` | Zooms to Digital Realty Cermak |
+| 5 | 10s | Advanced → Engineering | QC, CI, TiTiler health |
 
-1. **Serve the frontend:** From `frontend/`, run `python -m http.server 8080` (or any static server on a free port).
-2. **Open the app:** Visit `http://localhost:8080` in a browser.
-3. **Configure tiles (optional):** For high-res ECOSTRESS via TiTiler, set `titilerBaseUrl` in `frontend/config.js` to your deployed Render URL (see **Render (TiTiler) publish** below).
-4. **Walk the story:** Turn on AOI risk, data center locations, and the DC-vs-control delta layer; pan/zoom over Chicago and read values against the legend to see how buffers compare to matched controls.
+### Demo (local)
+
+1. From the repo root: `python3 -m http.server 8080`
+2. Open `http://localhost:8080/frontend/`
+3. Pages deploy bakes static XYZ. Locally, TiTiler on Render may cold-start; a yellow banner says so if tiles fail. Overlays still load.
 
 ---
 
-## 1) Purpose of this app
+## 1) Purpose
 
-### What this app does
+**Study sites:** 183 Chicago-area data centers from DataCenterMap; 113 could be geocoded and are the locations on the map.
 
-This app helps answer a practical question:
+Default overlays:
 
-**Are neighborhoods around data centers staying hotter at night than comparable nearby areas?**
+- **Data center sites:** the study locations (not a generic heatmap).
+- **Warmer than control (Δ°C):** each 500 m buffer vs matched non–data-center controls at the same timestamps.
+- **Heat context score:** optional, off by default.
 
-It combines satellite-derived thermal data with mapped data center locations and shows three overlays:
+### How to read Δ
 
-- **Are of interest (AOI) risk**: a simple heat-risk score for each mapped area.
-- **Data centers**: known data center locations used in the analysis.
-- **Data Center delta vs controls**: how much warmer/cooler each data-center buffer is compared with matched non-data-center control buffers at the same timestamps.
-
-### How to read it
-
-- Higher positive delta values mean data-center areas were warmer than matched controls.
-- Values near zero mean little difference.
-- Negative values mean data-center areas were cooler than matched controls.
+- Higher positive Δ: data-center areas were warmer than matched controls.
+- Near zero: little difference.
+- Negative: cooler than matched controls.
 
 ### What this app is not
 
-- It does **not** prove causality by itself.
-- It is an observational, geospatial comparison workflow.
-- Results depend on data availability, cloud conditions, quality masks, and source completeness.
+- It does **not** prove causality.
+- It is an observational geospatial comparison.
+- Results depend on clouds, QC masks, and list completeness.
+
+Full formulas: [`docs/METHODS.md`](docs/METHODS.md).
 
 ---
 
-## 2) Developer guide (run it yourself)
+## 2) Developer guide
 
 ### Repo structure
 
@@ -74,7 +99,7 @@ source .venv/bin/activate          # activate the environment
 pip install -r requirements.txt    # install analysis dependencies
 ```
 
-Run the Illinois ECOSTRESS study:
+To run Chicago ECOSTRESS study (fetch bbox defaults to the DC hull + 10 km):
 
 ```bash
 python 23_run_il_ecostress_dc_study.py \
@@ -89,7 +114,7 @@ python 23_run_il_ecostress_dc_study.py \
 # --outputs_dir: folder for generated outputs
 ```
 
-Build DC effect GeoJSON for the web map:
+To build DC effect GeoJSON for the web map:
 
 ```bash
 python 06_export_dc_effect_geojson.py \
@@ -99,172 +124,48 @@ python 06_export_dc_effect_geojson.py \
 # --out: GeoJSON consumed by the frontend effect overlay
 ```
 
-### GitHub Pages publish
+### To publish to GitHub Pages
 
 1. Set repository Pages source to **GitHub Actions**.
 2. Push to `main`.
 3. Workflow `.github/workflows/pages.yml` publishes `frontend/` and `data/`.
-4. Public URL: `https://charlotteprevost.github.io/chicago_lst/`
+4. Public URL: `https://charlotteprevost.github.io/chicago_lst/frontend/`
+   The Pages workflow also bakes a static XYZ PNG pyramid (z6–z10) from the public COG when GDAL/rasterio is available, so first paint does not wait on Render.
 
-### Render (TiTiler) publish
+### To publish to Render (TiTiler)
 
 1. Create Render service from this repo using `render.yaml`.
 2. Use `backend/` as service root (`rootDir: backend` in `render.yaml`).
 3. Health check path is `/`.
 4. Put your service URL in `frontend/config.js` as `titilerBaseUrl`.
 
-### High-res ECOSTRESS tiles
-
-To use high-resolution ECOSTRESS LST in the app:
+### To use high-res ECOSTRESS LST in the app:
 
 1. Build a COG from raster(s) in `analysis/` (`24_make_ecostress_cog.py` or `25_publish_latest_ecostress_cog.py`).
 2. Host COG at a public URL that supports byte-range requests.
-3. Update `data/ecostress_highres_latest.json` with that COG URL.
-4. App requests tiles from TiTiler (`/cog/...`), with fallback to NASA GIBS.
+3. Update `data/ecostress_highres_latest.json` with that COG URL and optional `scene_time`.
+4. Prefer a static XYZ pyramid (`26_bake_ecostress_xyz.py`) so the map does not wait on TiTiler. GitHub Pages bakes z6–z10 on deploy. Locally:
+
+```bash
+python 26_bake_ecostress_xyz.py \
+  --cog /vsicurl/https://pub-35e731c3513942bd8c03f959efee69d1.r2.dev/ecostress_il_lst_70m_latest.cog.tif \
+  --out-dir ../data/tiles/ecostress \
+  --min-zoom 6 \
+  --max-zoom 10 \
+  --public-tiles-url "../data/tiles/ecostress/{z}/{x}/{y}.png" \
+  --scene-time 2025-07-31T18:05:13Z
+# --cog: local path or /vsicurl/<https COG>
+# --out-dir: XYZ root {z}/{x}/{y}.png (WebMercatorQuad, EPSG:3857)
+# --public-tiles-url: template written into data/ecostress_highres_latest.json
+```
+
+5. If `tiles_url` is missing or the probe tile 404s, the app falls back to TiTiler (`/cog/...`). If that fails, the OSM basemap stays and the status line reports that temperature tiles are unavailable.
 
 ---
 
-## 3) Full methods: all sources, math, stats, and assumptions
+## 3) Methods
 
-## Data sources (all used by this project)
+Formulas, QC, and caveats: **[`docs/METHODS.md`](docs/METHODS.md)**.
 
-### Thermal imagery and map tiles
+Optional modeling scripts (`analysis/36_*`, `40_*`) are research extras and are not required for the live demo.
 
-- **ECOSTRESS L2T LST (primary high-resolution thermal source)**
-  - Accessed via Earthdata tooling in `analysis/22_fetch_ecostress_l2t_il.py`
-  - Typical resolution used in this project: ~70 m LST tiles
-- **NASA GIBS WMTS layers (visual fallback/background)**
-  - Endpoint in `frontend/config.js`:
-  - `https://gibs.earthdata.nasa.gov/wmts/epsg3857/{service}/{layer}/default/{time}/{tileMatrixSet}/{z}/{y}/{x}.png`
-  - Default fallback dataset configured: `VIIRS_SNPP_DayNightBand_ENCC`
-
-### Data center locations
-
-- Source list page:
-  - `https://www.datacentermap.com/usa/illinois/chicago/`
-- Raw paste archive:
-  - `data/chicago_data_centers_183_source.txt`
-- Parsed table:
-  - `data/chicago_data_centers_183.csv`
-- Geocoded points:
-  - `data/chicago_data_centers_183.geojson`
-
-### Derived overlays served to the frontend
-
-- `data/aoi_risk_latest.geojson` (risk scoring overlay)
-- `data/dc_effect_cumulative.geojson` (data center vs control effect overlay)
-- `data/ecostress_highres_latest.json` (current COG pointer for TiTiler)
-
-### Optional covariates (advanced modeling stage)
-
-The analysis pipeline includes optional covariate extraction/matching steps (`32+` scripts) and manifest builders; see `analysis/README.md` for full covariate workflow details.
-
-## Processing and QC pipeline
-
-### Core workflow
-
-1. Generate AOI buffers around data-center points and matched control points.
-2. Fetch ECOSTRESS tiles for the requested date range.
-3. Extract zonal statistics for each AOI and timestamp.
-4. Apply quality controls and convert Kelvin to Celsius.
-5. Compute risk and comparative metrics.
-6. Export GeoJSON overlays for the web map.
-
-### Quality control and transforms
-
-Implemented in generated config and extraction scripts:
-
-- **Unit conversion**: `degC = Kelvin - 273.15`
-- **QC masking defaults**:
-  - keep clear-sky pixels (`cloud == 0`)
-  - keep non-water pixels (`water == 0`)
-  - keep QC classes `[0, 1]` with `qc_class_bitmask = 3`
-- Companion masks referenced by filename convention:
-  - `*_cloud.tif`, `*_water.tif`, `*_QC.tif`
-
-## Math and statistics used
-
-### A) Risk/anomaly layer (`analysis/02_compute_anomaly_and_risk.py`)
-
-For each AOI and baseline group (month or day-of-year):
-
-- `baseline_mean = mean(mean_temperature)`
-- `baseline_std = std(mean_temperature)`
-- `baseline_p90 = 90th percentile(mean_temperature)`
-
-For each observation:
-
-- `anomaly = mean - baseline_mean`
-- `z = anomaly / baseline_std`
-- `is_hot_night = 1 if mean > baseline_p90 else 0`
-
-Trend:
-
-- Fit linear model `y = a + b*t` where:
-  - `y` is AOI mean temperature
-  - `t` is years since first observation
-  - `trend_c_per_year = b`
-
-Recent hot-night frequency:
-
-- `hot_nights_14 = sum(is_hot_night over latest 14 observations)`
-
-Risk score (clipped to 0..100):
-
-- `z_clip = clip(z, -3, 6)`
-- `freq_score = (hot_nights_14 / 14) * 25`
-- `trend_score = clip(trend_c_per_year, 0, 5) * 5`
-- `risk_score = clip(z_clip*10 + freq_score + trend_score, 0, 100)`
-
-### B) Data center vs control comparative stats (`analysis/23_`_ + `analysis/06\__`)
-
-Per timestamp and buffer size:
-
-- `ctrl_mean = mean(control AOI values at same date+buffer)`
-- `delta_c_dc_minus_ctrl = dc_value - ctrl_mean`
-
-Cumulative per AOI metrics:
-
-- `delta_mean_c`: weighted mean of `delta_c_dc_minus_ctrl` using pixel-count weights
-- `delta_median_c`: median of deltas
-- `delta_p90_c`: 90th percentile of deltas
-- `dc_mean_c`: weighted mean AOI value for DC site
-- `ctrl_mean_c`: weighted mean matched control mean
-
-Pre/post opening windows (when opening date is known):
-
-- pre window: `dt < opening_date`
-- post window: `dt >= opening_date`
-- exported counts/date ranges and weighted means for both windows:
-  - `n_pre_open_obs`, `n_post_open_obs`
-  - `delta_pre_open_mean_c`, `delta_post_open_mean_c`
-  - `dc_pre_open_mean_c`, `dc_post_open_mean_c`
-  - `ctrl_pre_open_mean_c`, `ctrl_post_open_mean_c`
-
-### C) Summary tables exported by pipeline
-
-- `timeseries.csv`: base zonal outputs per AOI/time
-- `timeseries_enriched.csv`: AOI metadata + group labels + optional opening metadata
-- `summary_effects_by_date_buffer.csv`: DC and control side-by-side by date/buffer
-- `regression_ready_rows.csv`: one AOI-time row for downstream modeling
-
-## Opening-date provenance policy
-
-Opening dates in `chicago_data_centers_183.csv` follow a strict verification policy:
-
-- keep fields blank unless a trustworthy source URL is available
-- store source metadata fields:
-  - `went_live_source_url`
-  - `went_live_source_title`
-  - `went_live_source_notes`
-- mark status:
-  - `verified` only with date + source URL
-  - otherwise `needs_research`
-
-## Known limitations and interpretation cautions
-
-- Data center list coverage is source-dependent and may be incomplete.
-- Geocoding/address normalization introduces uncertainty.
-- Remote sensing has missingness (cloud, QC masks, temporal gaps).
-- Control matching reduces but does not eliminate confounding.
-- Comparative deltas are observational indicators, not causal proof.

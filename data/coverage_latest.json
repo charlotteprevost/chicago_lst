@@ -1,0 +1,13 @@
+{
+  "buffer_m": 500.0,
+  "n_dc_sites": 113,
+  "n_study_nights": 22,
+  "median_n_obs": 10,
+  "snapshot": {
+    "scene_time": "2025-07-31T18:04:21Z",
+    "n_dc_with_pixels": 113,
+    "n_dc_sites": 113,
+    "frac": 1.0
+  },
+  "note": "Per-site series from dc_effect_cumulative.geojson plus the same-pass snapshot. Combined series does not require one night covering every site. Same-timestamp DC−control deltas only."
+}
